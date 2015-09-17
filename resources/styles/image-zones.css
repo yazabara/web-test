@@ -1,0 +1,9 @@
+layer-image {
+    display: block;
+    position: relative;
+    overflow: hidden;
+}
+
+layer-image img {
+    margin: auto;
+}
