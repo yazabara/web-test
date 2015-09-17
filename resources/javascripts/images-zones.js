@@ -62,110 +62,111 @@ imagesApp.controller('Controller', ['$scope', '$log', function ($scope, $log) {
 
 imagesApp.directive('layerImage', ['$log', 'SETTINGS', '$document', function ($log, SETTINGS, $document) {
 
-    var moveProps = {
-        x: 0,
-        y: 0,
-        startX: 0,
-        startY: 0,
-        wDelta: 0,//clear zone delta
-        hDelta: 0//clear zone delta
-    };
-
-    var selectors = {
-        backgroundImage: '.back-layer-image',
-        croppedImage: '.cropped-image',
-        cropBox: '.crop-box'
-    };
-
-    var imageProps = {
-        url: '',//Image url
-        height: 0,// Image Height (IH)
-        width: 0, // ImageWidth (IW)
-        aspectRatio: 0// Image Aspect Ratio (IAR)
-    };
-
-    var previewProps = {
-        zoomFactor: 1,
-        height: 0,// PreviewHeight (PH) - the height of the image preview is (fixed in the HTML layout)
-        width: 0 // PreviewWidth  (PW)- the width of the image preview is (fixed in the HTML layout)
-    };
 
     function link(scope, element, attrs) {
-        var backgroundImageElement = element.find(selectors.backgroundImage);
-        var croppedImageElement = element.find(selectors.croppedImage);
-        var cropBoxElement = element.find(selectors.cropBox);
+        //init all props
+        scope.moveProps = {
+            x: 0,
+            y: 0,
+            startX: 0,
+            startY: 0,
+            wDelta: 0,//clear zone delta
+            hDelta: 0//clear zone delta
+        };
+
+        scope.selectors = {
+            backgroundImage: '.back-layer-image',
+            croppedImage: '.cropped-image',
+            cropBox: '.crop-box'
+        };
+
+        scope.imageProps = {
+            url: '',//Image url
+            height: 0,// Image Height (IH)
+            width: 0, // ImageWidth (IW)
+            aspectRatio: 0// Image Aspect Ratio (IAR)
+        };
+
+        scope.previewProps = {
+            zoomFactor: 1,
+            height: 0,// PreviewHeight (PH) - the height of the image preview is (fixed in the HTML layout)
+            width: 0 // PreviewWidth  (PW)- the width of the image preview is (fixed in the HTML layout)
+        };
+
+
+        //fill all props
+        var backgroundImageElement = element.find(scope.selectors.backgroundImage);
+        var croppedImageElement = element.find(scope.selectors.croppedImage);
+        var cropBoxElement = element.find(scope.selectors.cropBox);
 
         backgroundImageElement.bind('load', function () {
                 //fill image props
-                angular.extend(imageProps, {
+                angular.extend(scope.imageProps, {
                     width: this.naturalWidth,
                     height: this.naturalHeight,
                     url: scope.imgSrc,
                     aspectRatio: this.naturalHeight == 0 ? 1 : this.naturalWidth / this.naturalHeight
                 });
-                $log.info('Image: (w: ' + imageProps.width + ', h: ' + imageProps.height + ', ap: ' + imageProps.aspectRatio + ')');
+                $log.info('Image: (w: ' + scope.imageProps.width + ', h: ' + scope.imageProps.height + ', ap: ' + scope.imageProps.aspectRatio + ')');
                 //fill preview props
-                angular.extend(previewProps, {
+                angular.extend(scope.previewProps, {
                     width: backgroundImageElement.width(),
-                    height: backgroundImageElement.width() / imageProps.aspectRatio, //PreviewHeight PH = PW / IAR
+                    height: backgroundImageElement.width() / scope.imageProps.aspectRatio, //PreviewHeight PH = PW / IAR
                     zoomFactor: !scope.zoomFactor ? 1 : parseFloat(scope.zoomFactor)
                 });
-                $log.info('Preview: (w: ' + previewProps.width + ', h(PH = PW / IAR): ' + previewProps.height + ', original height: ' + element.height() + ')');
+                $log.info('Preview: (w: ' + scope.previewProps.width + ', h(PH = PW / IAR): ' + scope.previewProps.height + ', original height: ' + element.height() + ')');
 
-                var clearZoneCoordinates = calculating();
-                initClearZone(clearZoneCoordinates, cropBoxElement, croppedImageElement, backgroundImageElement);
-
-
+                initClearZone(scope, calculating(scope)/*clear zone coordinates*/, cropBoxElement, croppedImageElement, backgroundImageElement);
             }
         );
     }
 
-    function initClearZone(clearZoneCoordinates, cropBoxElement, croppedImageElement, backgroundImageElement) {
+    function initClearZone(scope, clearZoneCoordinates, cropBoxElement, croppedImageElement, backgroundImageElement) {
         cropBoxElement.css('width', clearZoneCoordinates.width);
         cropBoxElement.css('height', clearZoneCoordinates.height);
 
         //calculate delta (for clear zone)
-        moveProps.wDelta = (imageProps.width - clearZoneCoordinates.width) / 2;
-        moveProps.hDelta = (imageProps.height - clearZoneCoordinates.height) / 2;
+        scope.moveProps.wDelta = (scope.imageProps.width - clearZoneCoordinates.width) / 2;
+        scope.moveProps.hDelta = (scope.imageProps.height - clearZoneCoordinates.height) / 2;
 
-        cropBoxElement.css('left', moveProps.wDelta);
-        cropBoxElement.css('top', moveProps.hDelta);
+        cropBoxElement.css('left', scope.moveProps.wDelta);
+        cropBoxElement.css('top', scope.moveProps.hDelta);
 
         //ini movement
-        initImageMove(cropBoxElement, croppedImageElement, backgroundImageElement, clearZoneCoordinates);
+        initImageMove(scope, cropBoxElement, croppedImageElement, backgroundImageElement, clearZoneCoordinates);
 
-        croppedImageElement.css('left', (moveProps.x - moveProps.wDelta));
-        croppedImageElement.css('top', (moveProps.y - moveProps.hDelta));
+        croppedImageElement.css('left', (scope.moveProps.x - scope.moveProps.wDelta));
+        croppedImageElement.css('top', (scope.moveProps.y - scope.moveProps.hDelta));
     }
 
-    function initImageMove(cropBoxElement, croppedImage, backgroundImage, clearZoneCoordinates) {
+    function initImageMove(scope, cropBoxElement, croppedImage, backgroundImage, clearZoneCoordinates) {
 
         croppedImage.on('mousedown', function (event) {
             // Prevent default dragging of selected content
             event.preventDefault();
-            moveProps.startX = event.pageX - moveProps.x;
-            moveProps.startY = event.pageY - moveProps.y;
+            scope.moveProps.startX = event.pageX - scope.moveProps.x;
+            scope.moveProps.startY = event.pageY - scope.moveProps.y;
             $document.on('mousemove', mousemove);
             $document.on('mouseup', mouseup);
         });
 
         function mousemove(event) {
-            var x = event.pageX - moveProps.startX;
-            var y = event.pageY - moveProps.startY;
-            var newX = (x - moveProps.wDelta);
-            var newY = (y - moveProps.hDelta);
+            var x = event.pageX - scope.moveProps.startX;
+            var y = event.pageY - scope.moveProps.startY;
+            var newX = (x - scope.moveProps.wDelta);
+            var newY = (y - scope.moveProps.hDelta);
 
             //change place if coordinates in box
-            if ((newX < 0 && newX > 0 - (imageProps.width - clearZoneCoordinates.width)) && (newY < 0 && newY > 0 - (imageProps.height - clearZoneCoordinates.height))) {
-                moveProps.y = y;
-                moveProps.x = x;
+            if ((newX < 0 && newX > 0 - (scope.imageProps.width - clearZoneCoordinates.width)) && (newY < 0 && newY > 0 - (scope.imageProps.height - clearZoneCoordinates.height))) {
+                scope.moveProps.y = y;
+                scope.moveProps.x = x;
                 croppedImage.css({
                     top: newY + 'px',
                     left: newX + 'px'
                 });
                 backgroundImage.css({
-                    top: moveProps.y + 'px',
-                    left: moveProps.x + 'px'
+                    top: scope.moveProps.y + 'px',
+                    left: scope.moveProps.x + 'px'
                 });
             }
         }
@@ -190,10 +191,10 @@ imagesApp.directive('layerImage', ['$log', 'SETTINGS', '$document', function ($l
         element.css('transform', 'scale(' + zoom + ')');
     }
 
-    function calculating() {
+    function calculating(scope) {
         var Devices = SETTINGS.Devices;
         var UI = SETTINGS.UI;
-        var ZF = previewProps.zoomFactor;
+        var ZF = scope.previewProps.zoomFactor;
 
         // WorstCaseProtraitAspectRatio (WCPAR)
         var WCPAR = Math.min(Devices.Portrait.AspectRatio.Low, Devices.Portrait.AspectRatio.High);
@@ -207,29 +208,29 @@ imagesApp.directive('layerImage', ['$log', 'SETTINGS', '$document', function ($l
         var MAXDW = Math.max(Devices.Portrait.ScreenSize.Width.Max, Devices.Landscape.ScreenSize.Width.Max);
 
         // MinZoomFactor (MINZF)
-        var MINZF = Math.max(MAXDW / imageProps.width, MAXDH / imageProps.height);
+        var MINZF = Math.max(MAXDW / scope.imageProps.width, MAXDH / scope.imageProps.height);
 
         // MaxZoonFactor (MAXZF)
-        var MAXZF = ( MINZF >= 1 ? MINZF : Math.min(imageProps.width / MAXDW, imageProps.height / MAXDW) );
+        var MAXZF = ( MINZF >= 1 ? MINZF : Math.min(scope.imageProps.width / MAXDW, scope.imageProps.height / MAXDW) );
         // note: MAXZF==MINZF means that no zooming is allowed
 
         // ImageDivWidth (IDW)
-        var IDW = imageProps.width * ZF;
+        var IDW = scope.imageProps.width * ZF;
 
         // ImageDivHeight (IDH)
-        var IDH = imageProps.height * ZF;
+        var IDH = scope.imageProps.height * ZF;
 
         // PortraitCropRectangleWidth (PCRW)
-        var PCRW = previewProps.width * WCPAR;
+        var PCRW = scope.previewProps.width * WCPAR;
 
         // LandscapeCropRectangleHeight (LCRH)
-        var LCRH = previewProps.height / WCLAR;
+        var LCRH = scope.previewProps.height / WCLAR;
 
         // ShortestPortraitCropRectangleHeight (SPCRH)
         var SPCRH = PCRW / Devices.Portrait.AspectRatio.High;
 
         // NarrowestLandscapeCropRectangleWidth (NLCRW)
-        var NLCRW = previewProps.width * Devices.Landscape.AspectRatio.Low;
+        var NLCRW = scope.previewProps.width * Devices.Landscape.AspectRatio.Low;
 
         // UI Portrait Relative Offsets
         var UIPROL = UI.Overlays.Portrait.Left / Devices.Portrait.ScreenSize.Width.Min;
@@ -237,7 +238,7 @@ imagesApp.directive('layerImage', ['$log', 'SETTINGS', '$document', function ($l
         var UIPROR = UI.Overlays.Portrait.Right / Devices.Portrait.ScreenSize.Width.Min;
         var UIPROB = UI.Overlays.Portrait.Bottom / Devices.Portrait.ScreenSize.Height.Min;
 
-        // UI Lavar ndscape Relative Offsets
+        // UI Landscape Relative Offsets
         var UILROL = UI.Overlays.Landscape.Left / Devices.Landscape.ScreenSize.Width.Min;
         var UILROT = UI.Overlays.Landscape.Top / Devices.Landscape.ScreenSize.Height.Min;
         var UILROR = UI.Overlays.Landscape.Right / Devices.Landscape.ScreenSize.Width.Min;
