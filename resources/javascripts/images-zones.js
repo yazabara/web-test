@@ -10,12 +10,32 @@ imagesApp.controller('Controller', ['$scope', '$log', function ($scope, $log) {
 
 imagesApp.directive('layerImage', ['$log', function ($log) {
 
+    var imageProps = {
+        url: '',
+        naturalHeight: 0,
+        naturalWidth: 0
+    };
+
     function link(scope, element, attrs) {
-        $log.info('directive');
+        //fill image props
+        element.find('img').bind('load', function () {
+                angular.extend(imageProps, {
+                    naturalWidth: this.naturalWidth,
+                    naturalHeight: this.naturalHeight,
+                    url: scope.imgSrc
+                });
+                $log.info('image was loaded: ' + imageProps);
+            }
+        );
     }
 
     return {
+        scope: {
+            imgSrc: '@'
+        },
+        templateUrl: "layer-image-template.html",
         restrict: 'AEC',
         link: link
     }
-}]);
+}])
+;
