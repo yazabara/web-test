@@ -112,8 +112,6 @@ imagesApp.directive('layerImage', ['$log', 'SETTINGS', function ($log, SETTINGS)
     function calculating() {
         var Devices = SETTINGS.Devices;
         var UI = SETTINGS.UI;
-
-        //TODO Zoom factor
         var ZF = previewProps.zoomFactor;
 
         // WorstCaseProtraitAspectRatio (WCPAR)
