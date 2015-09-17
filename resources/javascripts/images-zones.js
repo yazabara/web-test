@@ -60,7 +60,22 @@ imagesApp.controller('Controller', ['$scope', '$log', function ($scope, $log) {
     $log.info('controller was initialized');
 }]);
 
-imagesApp.directive('layerImage', ['$log', 'SETTINGS', function ($log, SETTINGS) {
+imagesApp.directive('layerImage', ['$log', 'SETTINGS', '$document', function ($log, SETTINGS, $document) {
+
+    var moveProps = {
+        x: 0,
+        y: 0,
+        startX: 0,
+        startY: 0,
+        wDelta: 0,//clear zone delta
+        hDelta: 0//clear zone delta
+    };
+
+    var selectors = {
+        backgroundImage: '.back-layer-image',
+        croppedImage: '.cropped-image',
+        cropBox: '.crop-box'
+    };
 
     var imageProps = {
         url: '',//Image url
@@ -76,8 +91,11 @@ imagesApp.directive('layerImage', ['$log', 'SETTINGS', function ($log, SETTINGS)
     };
 
     function link(scope, element, attrs) {
+        var backgroundImageElement = element.find(selectors.backgroundImage);
+        var croppedImageElement = element.find(selectors.croppedImage);
+        var cropBoxElement = element.find(selectors.cropBox);
 
-        element.find('img').bind('load', function () {
+        backgroundImageElement.bind('load', function () {
                 //fill image props
                 angular.extend(imageProps, {
                     width: this.naturalWidth,
@@ -85,27 +103,90 @@ imagesApp.directive('layerImage', ['$log', 'SETTINGS', function ($log, SETTINGS)
                     url: scope.imgSrc,
                     aspectRatio: this.naturalHeight == 0 ? 1 : this.naturalWidth / this.naturalHeight
                 });
-                $log.info('imageProps was filled: (' + imageProps.width + ', ' + imageProps.height + ', ' + imageProps.aspectRatio + ')');
+                $log.info('Image: (w: ' + imageProps.width + ', h: ' + imageProps.height + ', ap: ' + imageProps.aspectRatio + ')');
                 //fill preview props
                 angular.extend(previewProps, {
-                    width: element.width(),
-                    height: element.width() / imageProps.aspectRatio, //PreviewHeight PH = PW / IAR
+                    width: backgroundImageElement.width(),
+                    height: backgroundImageElement.width() / imageProps.aspectRatio, //PreviewHeight PH = PW / IAR
                     zoomFactor: !scope.zoomFactor ? 1 : parseFloat(scope.zoomFactor)
                 });
-                $log.info('previewProps was filled: (' + previewProps.width + ', ' + previewProps.height + ', original height: ' + element.height() + ')');
+                $log.info('Preview: (w: ' + previewProps.width + ', h(PH = PW / IAR): ' + previewProps.height + ', original height: ' + element.height() + ')');
 
-                zoomImage(element.find('img'), previewProps.zoomFactor);
+                var clearZoneCoordinates = calculating();
+                initClearZone(clearZoneCoordinates, cropBoxElement, croppedImageElement, backgroundImageElement);
 
-                calculating();
+
             }
         );
     }
 
+    function initClearZone(clearZoneCoordinates, cropBoxElement, croppedImageElement, backgroundImageElement) {
+        cropBoxElement.css('width', clearZoneCoordinates.width);
+        cropBoxElement.css('height', clearZoneCoordinates.height);
+
+        //calculate delta (for clear zone)
+        moveProps.wDelta = (imageProps.width - clearZoneCoordinates.width) / 2;
+        moveProps.hDelta = (imageProps.height - clearZoneCoordinates.height) / 2;
+
+        cropBoxElement.css('left', moveProps.wDelta);
+        cropBoxElement.css('top', moveProps.hDelta);
+
+        //ini movement
+        initImageMove(cropBoxElement, croppedImageElement, backgroundImageElement, clearZoneCoordinates);
+
+        croppedImageElement.css('left', (moveProps.x - moveProps.wDelta));
+        croppedImageElement.css('top', (moveProps.y - moveProps.hDelta));
+    }
+
+    function initImageMove(cropBoxElement, croppedImage, backgroundImage, clearZoneCoordinates) {
+
+        croppedImage.on('mousedown', function (event) {
+            // Prevent default dragging of selected content
+            event.preventDefault();
+            moveProps.startX = event.pageX - moveProps.x;
+            moveProps.startY = event.pageY - moveProps.y;
+            $document.on('mousemove', mousemove);
+            $document.on('mouseup', mouseup);
+        });
+
+        function mousemove(event) {
+            var x = event.pageX - moveProps.startX;
+            var y = event.pageY - moveProps.startY;
+            var newX = (x - moveProps.wDelta);
+            var newY = (y - moveProps.hDelta);
+
+            //change place if coordinates in box
+            if ((newX < 0 && newX > 0 - (imageProps.width - clearZoneCoordinates.width)) && (newY < 0 && newY > 0 - (imageProps.height - clearZoneCoordinates.height))) {
+                moveProps.y = y;
+                moveProps.x = x;
+                croppedImage.css({
+                    top: newY + 'px',
+                    left: newX + 'px'
+                });
+                backgroundImage.css({
+                    top: moveProps.y + 'px',
+                    left: moveProps.x + 'px'
+                });
+            }
+        }
+
+        function mouseup() {
+            $document.off('mousemove', mousemove);
+            $document.off('mouseup', mouseup);
+        }
+    }
+
+    //TODO Deprecated
     function zoomImage(element, zoom) {
-        element.css('-webkit-transform', 'scale(' + zoom + ')');/* Safari and Chrome */
-        element.css('-moz-transform', 'scale(' + zoom + ')');/* Firefox */
-        element.css('-ms-transform', 'scale(' + zoom + ')');/* IE 9 */
-        element.css('-o-transform', 'scale(' + zoom + ')');/* Opera */
+        /* Safari and Chrome */
+        element.css('-webkit-transform', 'scale(' + zoom + ')');
+        /* Firefox */
+        element.css('-moz-transform', 'scale(' + zoom + ')');
+        /* IE 9 */
+        element.css('-ms-transform', 'scale(' + zoom + ')');
+        /* Opera */
+        element.css('-o-transform', 'scale(' + zoom + ')');
+        /* Common */
         element.css('transform', 'scale(' + zoom + ')');
     }
 
@@ -179,7 +260,11 @@ imagesApp.directive('layerImage', ['$log', 'SETTINGS', function ($log, SETTINGS)
         var CZW = Math.min(NLCRW - UILROL - UILROR, PCRW - UIPAOL - UIPAOR);
         var CZH = Math.min(SPCRH - UIPROT - UIPROB, LCRH - UILAOT - UILAOB);
 
-        $log.info(CZW + ", " + CZH);
+        $log.info('Clear zone: ' + CZW + ', ' + CZH);
+        return {
+            width: CZW,
+            height: CZH
+        };
     }
 
     return {
