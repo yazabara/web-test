@@ -110,10 +110,15 @@ imagesApp.directive('layerImage', ['$log', 'SETTINGS', '$document', function ($l
                 $log.info('Image: (w: ' + scope.imageProps.width + ', h: ' + scope.imageProps.height + ', ap: ' + scope.imageProps.aspectRatio + ')');
                 //fill preview props
                 angular.extend(scope.previewProps, {
-                    width: backgroundImageElement.width(),
-                    height: backgroundImageElement.width() / scope.imageProps.aspectRatio, //PreviewHeight PH = PW / IAR
+                    width: attrs.width,//backgroundImageElement.width(),
+                    height: attrs.width/*backgroundImageElement.width()*/ / scope.imageProps.aspectRatio, //PreviewHeight PH = PW / IAR
                     zoomFactor: !scope.zoomFactor ? 1 : parseFloat(scope.zoomFactor)
                 });
+
+                element.css('width',  scope.previewProps.width);
+                element.css('height', scope.previewProps.height);
+
+
                 $log.info('Preview: (w: ' + scope.previewProps.width + ', h(PH = PW / IAR): ' + scope.previewProps.height + ', original height: ' + element.height() + ')');
 
                 initClearZone(scope, calculating(scope)/*clear zone coordinates*/, cropBoxElement, croppedImageElement, backgroundImageElement);
@@ -131,6 +136,9 @@ imagesApp.directive('layerImage', ['$log', 'SETTINGS', '$document', function ($l
 
         cropBoxElement.css('left', scope.moveProps.wDelta);
         cropBoxElement.css('top', scope.moveProps.hDelta);
+
+        zoomImage(croppedImageElement, scope.previewProps.zoomFactor);
+        zoomImage(backgroundImageElement, scope.previewProps.zoomFactor);
 
         //ini movement
         initImageMove(scope, cropBoxElement, croppedImageElement, backgroundImageElement, clearZoneCoordinates);
@@ -158,6 +166,9 @@ imagesApp.directive('layerImage', ['$log', 'SETTINGS', '$document', function ($l
 
             //change place if coordinates in box
             if ((newX < 0 && newX > 0 - (scope.imageProps.width - clearZoneCoordinates.width)) && (newY < 0 && newY > 0 - (scope.imageProps.height - clearZoneCoordinates.height))) {
+
+                $log.info(newX + ' , ' + newY);
+
                 scope.moveProps.y = y;
                 scope.moveProps.x = x;
                 croppedImage.css({
@@ -207,6 +218,7 @@ imagesApp.directive('layerImage', ['$log', 'SETTINGS', '$document', function ($l
 
         var MAXDW = Math.max(Devices.Portrait.ScreenSize.Width.Max, Devices.Landscape.ScreenSize.Width.Max);
 
+        //TODO ???????????
         // MinZoomFactor (MINZF)
         var MINZF = Math.max(MAXDW / scope.imageProps.width, MAXDH / scope.imageProps.height);
 
@@ -247,14 +259,14 @@ imagesApp.directive('layerImage', ['$log', 'SETTINGS', '$document', function ($l
 
         // UI Portrait Overlay Actual Px Offsets
         var UIPAOL = UIPROL * PCRW;
-        var UIPAOT = UIPROT * SPCRH;
+        var UIPAOT = UIPROT * SPCRH;//TODO
         var UIPAOR = UIPROR * PCRW;
-        var UIPAOB = UIPROB * SPCRH;
+        var UIPAOB = UIPROB * SPCRH;//TODO
 
         // UI Lvar ndscape Overlay Actual Px Offsets
-        var UILAOL = UILROL * NLCRW;
+        var UILAOL = UILROL * NLCRW;//TODO
         var UILAOT = UILROT * LCRH;
-        var UILAOR = UILROR * NLCRW;
+        var UILAOR = UILROR * NLCRW;//TODO
         var UILAOB = UILROB * LCRH;
 
         // Clear Zone Size
@@ -273,7 +285,7 @@ imagesApp.directive('layerImage', ['$log', 'SETTINGS', '$document', function ($l
             imgSrc: '@',
             zoomFactor: '@'
         },
-        templateUrl: "layer-image-template.html",
+        templateUrl: "templates/image-zones-template.html",
         restrict: 'E',
         link: link
     }

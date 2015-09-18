@@ -1,6 +1,7 @@
 layer-image {
     position: relative;
     display: block;
+    overflow: hidden;
 }
 
 layer-image .crop-wrapper {
