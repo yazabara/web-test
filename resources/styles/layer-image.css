@@ -9,10 +9,17 @@ layer-image .red {
     position: absolute;
     top: 0;
     left: 0;
+    z-index: 42;
 }
 
 layer-image .gray {
     position: absolute;
     top: 0;
     left: 0;
+    z-index: 42;
+}
+
+layer-image img.cropped-image {
+    position: absolute;
+    z-index: 41;
 }
