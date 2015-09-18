@@ -4,3 +4,15 @@ layer-image {
     overflow: hidden;
     border: 1px solid #ccc;
 }
+
+layer-image .red {
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+layer-image .gray {
+    position: absolute;
+    top: 0;
+    left: 0;
+}

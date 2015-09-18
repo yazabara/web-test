@@ -110,12 +110,18 @@ imagesApp.directive('layerImage', ['$log', 'SETTINGS', '$document', function ($l
             UILAOR: 0,
             UILAOB: 0,
             // Clear Zone Size
-            CZW: 0,
-            CZH: 0
+            cleanZoneWidth: 0,
+            cleanZoneHeight: 0,
+            // Red Zone Size
+            redZoneWidth: 0,
+            redZoneHeight: 0,
+            // Gray ZOne Size
+            grayZoneWidth: 0,
+            grayZoneHeight: 0
         };
 
         //selectors
-        scope.laers = {
+        scope.layers = {
             redLayer: element.find('div.red'),
             imageLayer: element.find('img.cropped-image'),
             grayLayer: element.find('div.gray')
@@ -138,7 +144,7 @@ imagesApp.directive('layerImage', ['$log', 'SETTINGS', '$document', function ($l
 
 
         //on image load
-        scope.laers.imageLayer.bind('load', function () {
+        scope.layers.imageLayer.bind('load', function () {
                 //fill image props
                 angular.extend(scope.imageProps, {
                     originalWidth: this.naturalWidth,
@@ -146,13 +152,25 @@ imagesApp.directive('layerImage', ['$log', 'SETTINGS', '$document', function ($l
                     aspectRatio: this.naturalHeight == 0 ? 1 : this.naturalWidth / this.naturalHeight
                 });
                 $log.info('Image: (w: ' + scope.imageProps.originalWidth + ', h: ' + scope.imageProps.originalHeight + ', ap: ' + scope.imageProps.aspectRatio + ')');
+
+                var MAXDH = Math.max(Devices.Portrait.ScreenSize.Height.Max, Devices.Landscape.ScreenSize.Height.Max);
+                var MAXDW = Math.max(Devices.Portrait.ScreenSize.Width.Max, Devices.Landscape.ScreenSize.Width.Max);
+                var MAXDAR = MAXDW / MAXDH; // max device aspect ratio
+                $log.info('MAXDAR = ' + MAXDAR);
+
+
                 //fill preview props
                 angular.extend(scope.previewProps, {
                     width: attrs.width,
-                    height: attrs.width / scope.imageProps.aspectRatio, //PreviewHeight PH = PW / IAR
+                    height: attrs.width / MAXDAR,//scope.imageProps.aspectRatio, //PreviewHeight PH = PW / IAR
                     zoomFactor: !scope.zoomFactor ? 1 : parseFloat(scope.zoomFactor)
                 });
-                $log.info('Preview: (w: ' + scope.previewProps.width + ', h(PH = PW / IAR): ' + scope.previewProps.height + ', original height: ' + element.height() + ')');
+
+                scope.calculated.PSCALE = scope.previewProps.width / MAXDW;
+
+                $log.info('PSCALE = ' + scope.calculated.PSCALE);
+
+                $log.info('Preview: (w: ' + scope.previewProps.width + ', h: ' + scope.previewProps.height + ', original height: ' + element.height() + ')');
                 //set preview size
                 element.css('width', scope.previewProps.width);
                 element.css('height', scope.previewProps.height);
@@ -161,6 +179,8 @@ imagesApp.directive('layerImage', ['$log', 'SETTINGS', '$document', function ($l
                 initImageZoom(scope);
                 //calculate layers borders
                 calculateLayers(scope);
+                initRedZone(scope);
+                initGrayZone(scope);
             }
         );
     }
@@ -169,16 +189,19 @@ imagesApp.directive('layerImage', ['$log', 'SETTINGS', '$document', function ($l
      * Method calculate zoomFactor connected with settings and image original size
      * @param scope
      */
-    //TODO ?? ????? ??? ?????? ?? ???????? ?? preview width ? preview height,?.?. ?????????? ? ???
     function calculateZoomFactor(scope) {
+        scope.previewProps.zoomFactor = scope.previewProps.width / scope.imageProps.originalWidth;
+
         var Devices = SETTINGS.Devices;
         // MaxDeviceHeight (MAXDH)
         var MAXDH = Math.max(Devices.Portrait.ScreenSize.Height.Max, Devices.Landscape.ScreenSize.Height.Max);
         // MaxDeviceWidth (MAXDH)
         var MAXDW = Math.max(Devices.Portrait.ScreenSize.Width.Max, Devices.Landscape.ScreenSize.Width.Max);
         // MinZoomFactor (MINZF)
-        var MINZF = Math.min(MAXDW / scope.imageProps.originalWidth, MAXDH / scope.imageProps.originalHeight);
+        var MINZF = Math.max(MAXDW / scope.imageProps.originalWidth, MAXDH / scope.imageProps.originalHeight);
         // MaxZoomFactor (MAXZF)
+        //var MAXZF = Math.max(MAXDW / scope.imageProps.originalWidth, MAXDH / scope.imageProps.originalHeight);
+        //TODO
         var MAXZF = ( MINZF >= 1 ? MINZF : Math.min(scope.imageProps.originalWidth / MAXDW, scope.imageProps.originalHeight / MAXDW) );
         // note: MAXZF==MINZF means that no zooming is allowed
 
@@ -193,16 +216,38 @@ imagesApp.directive('layerImage', ['$log', 'SETTINGS', '$document', function ($l
      */
     function initImageZoom(scope) {
         // ImageDivWidth (IDW)
-        scope.imageProps.IDW = scope.imageProps.originalWidth * scope.previewProps.zoomFactor;
+        scope.imageProps.IDW = scope.imageProps.originalWidth * scope.previewProps.zoomFactor * scope.calculated.PSCALE;
         // ImageDivHeight (IDH)
-        scope.imageProps.IDH = scope.imageProps.originalHeight * scope.previewProps.zoomFactor;
+        scope.imageProps.IDH = scope.imageProps.originalHeight * scope.previewProps.zoomFactor * scope.calculated.PSCALE;
         $log.info('IDW = ' + scope.imageProps.IDW + ' , IDH = ' + scope.imageProps.IDH);
-        scope.laers.imageLayer.css('width', scope.imageProps.IDW);
-        scope.laers.imageLayer.css('height', scope.imageProps.IDH);
+        scope.layers.imageLayer.css('width', scope.imageProps.IDW);
+        scope.layers.imageLayer.css('height', scope.imageProps.IDH);
     }
 
     function initRedZone(scope) {
+        //size
+        scope.layers.redLayer.css('width', scope.previewProps.width);
+        scope.layers.redLayer.css('height', scope.previewProps.height);
+        //borders
+        scope.layers.redLayer.css('border-left', scope.calculated.redZoneWidth + "px solid rgba(217, 30, 24, 0.8)");
+        scope.layers.redLayer.css('border-right', scope.calculated.redZoneWidth + "px solid rgba(217, 30, 24, 0.8)");
+        scope.layers.redLayer.css('border-top', scope.calculated.redZoneHeight + "px solid rgba(217, 30, 24, 0.8)");
+        scope.layers.redLayer.css('border-bottom', scope.calculated.redZoneHeight + "px solid rgba(217, 30, 24, 0.8)");
+    }
 
+    function initGrayZone(scope) {
+        var delta = 2;
+        //size
+        scope.layers.grayLayer.css('width', scope.calculated.PCRW + delta);
+        scope.layers.grayLayer.css('height', scope.calculated.LCRH + delta);
+        //delta
+        scope.layers.grayLayer.css('left', scope.calculated.redZoneWidth - delta / 2);
+        scope.layers.grayLayer.css('top', scope.calculated.redZoneHeight - delta / 2);
+        //borders
+        scope.layers.grayLayer.css('border-left', scope.calculated.grayZoneWidth + "px solid rgba(149, 165, 166, 0.7)");
+        scope.layers.grayLayer.css('border-right', scope.calculated.grayZoneWidth + "px solid rgba(149, 165, 166, 0.7)");
+        scope.layers.grayLayer.css('border-top', scope.calculated.grayZoneHeight + "px solid rgba(149, 165, 166, 0.7)");
+        scope.layers.grayLayer.css('border-bottom', scope.calculated.grayZoneHeight + "px solid rgba(149, 165, 166, 0.7)");
     }
 
     function initImageMove(scope, cropBoxElement, croppedImage, backgroundImage, clearZoneCoordinates) {
@@ -265,15 +310,46 @@ imagesApp.directive('layerImage', ['$log', 'SETTINGS', '$document', function ($l
         scope.calculated.UIPAOT = scope.calculated.UIPROT * scope.calculated.SPCRH;//TODO
         scope.calculated.UIPAOR = scope.calculated.UIPROR * scope.calculated.PCRW;
         scope.calculated.UIPAOB = scope.calculated.UIPROB * scope.calculated.SPCRH;//TODO
-        // UI Lvar ndscape Overlay Actual Px Offsets
+        // UI Landscape Overlay Actual Px Offsets
         scope.calculated.UILAOL = scope.calculated.UILROL * scope.calculated.NLCRW;//TODO
         scope.calculated.UILAOT = scope.calculated.UILROT * scope.calculated.LCRH;
         scope.calculated.UILAOR = scope.calculated.UILROR * scope.calculated.NLCRW;//TODO
         scope.calculated.UILAOB = scope.calculated.UILROB * scope.calculated.LCRH;
+        $log.info('PCRW: ' + scope.calculated.PCRW + ', LCRH: ' + scope.calculated.LCRH);
         // Clear Zone Size
-        scope.calculated.CZW = Math.min(scope.calculated.NLCRW - scope.calculated.UILROL - scope.calculated.UILROR, scope.calculated.PCRW - scope.calculated.UIPAOL - scope.calculated.UIPAOR);
-        scope.calculated.CZH = Math.min(scope.calculated.SPCRH - scope.calculated.UIPROT - scope.calculated.UIPROB, scope.calculated.LCRH - scope.calculated.UILAOT - scope.calculated.UILAOB);
-        $log.info('Clear zone: ' + scope.calculated.CZW + ', ' + scope.calculated.CZH);
+        //scope.calculated.cleanZoneWidth = Math.min(scope.calculated.NLCRW - scope.calculated.UILAOL - scope.calculated.UILAOR, scope.calculated.PCRW - scope.calculated.UIPAOL - scope.calculated.UIPAOR);
+        if ((scope.calculated.NLCRW - scope.calculated.UILAOL - scope.calculated.UILAOR) < (scope.calculated.PCRW - scope.calculated.UIPAOL - scope.calculated.UIPAOR)) {
+            scope.calculated.cleanZoneWidth = (scope.calculated.NLCRW - scope.calculated.UILAOL - scope.calculated.UILAOR);
+            scope.calculated.leftRetio = scope.calculated.UILAOR == 0 ? 1 : scope.calculated.UILAOL / scope.calculated.UILAOR;
+        } else {
+            scope.calculated.cleanZoneWidth = (scope.calculated.PCRW - scope.calculated.UIPAOL - scope.calculated.UIPAOR);
+            scope.calculated.leftRetio = scope.calculated.UIPAOR == 0 ? 1 : scope.calculated.UIPAOL / scope.calculated.UIPAOR;
+        }
+        scope.calculated.cleanZoneHeight = Math.min(scope.calculated.SPCRH - scope.calculated.UIPAOT - scope.calculated.UIPAOB, scope.calculated.LCRH - scope.calculated.UILAOT - scope.calculated.UILAOB);
+        if (scope.calculated.SPCRH - scope.calculated.UIPAOT - scope.calculated.UIPAOB < scope.calculated.LCRH - scope.calculated.UILAOT - scope.calculated.UILAOB) {
+            scope.calculated.cleanZoneHeight = (scope.calculated.SPCRH - scope.calculated.UIPAOT - scope.calculated.UIPAOB);
+            scope.calculated.topRetio = scope.calculated.UIPAOB == 0 ? 1 : scope.calculated.UIPAOT / scope.calculated.UIPAOB;
+        } else {
+            scope.calculated.cleanZoneHeight = (scope.calculated.LCRH - scope.calculated.UILAOT - scope.calculated.UILAOB);
+            scope.calculated.topRetio = scope.calculated.UILAOB == 0 ? 1 : scope.calculated.UILAOT / scope.calculated.UILAOB;
+        }
+
+
+        $log.info('Clear zone: ' + scope.calculated.cleanZoneWidth + ', ' + scope.calculated.cleanZoneHeight);
+        // Red Zone Size
+        scope.calculated.redZoneWidth = (scope.previewProps.width - scope.calculated.PCRW) / 2;
+        scope.calculated.redZoneHeight = (scope.previewProps.height - scope.calculated.LCRH) / 2;
+        $log.info('redZoneWidth = ' + scope.calculated.redZoneWidth + ' , redZoneHeight = ' + scope.calculated.redZoneHeight);
+        // Gray Zone Size
+        scope.calculated.grayZoneWidth = (scope.calculated.PCRW - scope.calculated.cleanZoneWidth) / 2;
+        scope.calculated.grayZoneHeight = (scope.calculated.LCRH - scope.calculated.cleanZoneHeight) / 2;
+        $log.info('grayZoneWidth = ' + scope.calculated.grayZoneWidth + ' , grayZoneHeight = ' + scope.calculated.grayZoneHeight);
+
+        //only gray
+        scope.calculated.leftBorder =  (scope.calculated.grayZoneWidth - scope.calculated.cleanZoneWidth) * scope.calculated.leftRetio;
+        scope.calculated.rightBorder =  (scope.calculated.grayZoneWidth - scope.calculated.cleanZoneWidth) * (1 - scope.calculated.leftRetio);
+        scope.calculated.topBorder =  (scope.calculated.grayZoneHeight - scope.calculated.cleanZoneHeight) * scope.calculated.topRetio;
+        scope.calculated.bottomBorder =  (scope.calculated.grayZoneHeight - scope.calculated.cleanZoneHeight) * (1 - scope.calculated.topRetio);
     }
 
     return {
