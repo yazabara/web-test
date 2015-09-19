@@ -272,11 +272,11 @@ imagesApp.directive('layerImage', ['$log', 'SETTINGS', '$document', function ($l
             var y = event.pageY - scope.moveProps.startY;
             var endXImage = x + scope.imageProps.IDW;
             var endYImage = y + scope.imageProps.IDH;
-            $log.info('image end x: ' + endXImage + ' , image end y : ' + endYImage);
+            //$log.info('image end x: ' + endXImage + ' , image end y : ' + endYImage);
             if (x < scope.calculated.redZoneWidth && y < scope.calculated.redZoneHeight &&
                 endXImage > scope.previewProps.width - scope.calculated.redZoneWidth &&
                 endYImage > scope.previewProps.height - scope.calculated.redZoneHeight) {
-                $log.info(x + ' , ' + y);
+                //$log.info(x + ' , ' + y);
                 scope.moveProps.y = y;
                 scope.moveProps.x = x;
                 scope.layers.imageLayer.css({
@@ -347,10 +347,6 @@ imagesApp.directive('layerImage', ['$log', 'SETTINGS', '$document', function ($l
         scope.calculated.grayZoneWidth = (scope.calculated.PCRW - scope.calculated.cleanZoneWidth) / 2;
         scope.calculated.grayZoneHeight = (scope.calculated.LCRH - scope.calculated.cleanZoneHeight) / 2;
         $log.info('grayZoneWidth = ' + scope.calculated.grayZoneWidth + ' , grayZoneHeight = ' + scope.calculated.grayZoneHeight);
-
-        //only gray
-
-
     }
 
     return {
