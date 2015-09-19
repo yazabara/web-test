@@ -42,15 +42,15 @@ var imagesApp = angular.module('LayersImageApp', [], function () {
         Overlays: {
             Portrait: {
                 Left: 50,
-                Top: 15,
-                Right: 12,
-                Bottom: 10
+                Top: 85,
+                Right: 0,
+                Bottom: 100
             },
             Landscape: {
                 Left: 0,
-                Top: 30,
-                Right: 20,
-                Bottom: 20
+                Top: 0,
+                Right: 0,
+                Bottom: 0
             }
         }
     }
@@ -128,9 +128,6 @@ imagesApp.directive('layerImage', ['$log', 'SETTINGS', '$document', function ($l
             // Red Zone Size
             redZoneWidth: 0,
             redZoneHeight: 0,
-            // Gray ZOne Size
-            grayZoneWidth: 0,
-            grayZoneHeight: 0,
             //borders for gray zone
             leftGrayBorder: 0,
             rightGrayBorder: 0,
@@ -243,18 +240,18 @@ imagesApp.directive('layerImage', ['$log', 'SETTINGS', '$document', function ($l
         //size
         setElementSize(scope.layers.redLayer, scope.previewProps.width, scope.previewProps.height);
         //borders
-        setElementBorders(scope.layers.redLayer, scope.calculated.redZoneWidth, scope.calculated.redZoneWidth, scope.calculated.redZoneHeight, scope.calculated.redZoneHeight, 'rgba(217, 30, 24, 0.8)');
+        setElementBorders(scope.layers.redLayer, scope.calculated.redZoneWidth, scope.calculated.redZoneWidth, scope.calculated.redZoneHeight, scope.calculated.redZoneHeight, 'rgba(0, 0, 0, 0.65)');
     }
 
     function initGrayZone(scope) {
-        var delta = 2;
+        var delta = 0;
         //size
         setElementSize(scope.layers.grayLayer, scope.calculated.PCRW + delta, scope.calculated.LCRH + delta);
         //delta
         scope.layers.grayLayer.css('left', scope.calculated.redZoneWidth - delta / 2);
         scope.layers.grayLayer.css('top', scope.calculated.redZoneHeight - delta / 2);
         //borders
-        setElementBorders(scope.layers.grayLayer, scope.calculated.leftGrayBorder, scope.calculated.rightGrayBorder, scope.calculated.topGrayBorder, scope.calculated.bottomGrayBorder, 'rgba(149, 165, 166, 0.7)');
+        setElementBorders(scope.layers.grayLayer, scope.calculated.leftGrayBorder, scope.calculated.rightGrayBorder, scope.calculated.topGrayBorder, scope.calculated.bottomGrayBorder, 'rgba(0, 0, 0, 0.5)');
     }
 
     function initImageMove(scope) {
@@ -318,35 +315,41 @@ imagesApp.directive('layerImage', ['$log', 'SETTINGS', '$document', function ($l
         scope.calculated.UILAOB = scope.calculated.UILROB * scope.calculated.LCRH;
 
         $log.info('PCRW: ' + scope.calculated.PCRW + ', LCRH: ' + scope.calculated.LCRH);
+
         // Clear Zone Size
-        if ((scope.calculated.NLCRW - scope.calculated.UILAOL - scope.calculated.UILAOR) < (scope.calculated.PCRW - scope.calculated.UIPAOL - scope.calculated.UIPAOR)) {
-            scope.calculated.cleanZoneWidth = (scope.calculated.NLCRW - scope.calculated.UILAOL - scope.calculated.UILAOR);
-            scope.calculated.leftGrayBorder = scope.calculated.UILAOL;
-            scope.calculated.rightGrayBorder = scope.calculated.UILAOR;
-        } else {
-            scope.calculated.cleanZoneWidth = (scope.calculated.PCRW - scope.calculated.UIPAOL - scope.calculated.UIPAOR);
-            scope.calculated.leftGrayBorder = scope.calculated.UIPAOL;
-            scope.calculated.rightGrayBorder = scope.calculated.UIPAOR;
-        }
-        if (scope.calculated.SPCRH - scope.calculated.UIPAOT - scope.calculated.UIPAOB < scope.calculated.LCRH - scope.calculated.UILAOT - scope.calculated.UILAOB) {
-            scope.calculated.cleanZoneHeight = (scope.calculated.SPCRH - scope.calculated.UIPAOT - scope.calculated.UIPAOB);
-            scope.calculated.topGrayBorder = scope.calculated.UIPAOT;
-            scope.calculated.bottomGrayBorder = scope.calculated.UIPAOB;
-        } else {
-            scope.calculated.cleanZoneHeight = (scope.calculated.LCRH - scope.calculated.UILAOT - scope.calculated.UILAOB);
-            scope.calculated.topGrayBorder = scope.calculated.UILAOT;
-            scope.calculated.bottomGrayBorder = scope.calculated.UILAOB;
-        }
+        scope.calculated.cleanZoneWidth = Math.min((scope.calculated.NLCRW - scope.calculated.UILAOL - scope.calculated.UILAOR), (scope.calculated.PCRW - scope.calculated.UIPAOL - scope.calculated.UIPAOR));
+        scope.calculated.cleanZoneHeight = Math.min((scope.calculated.SPCRH - scope.calculated.UIPAOT - scope.calculated.UIPAOB), (scope.calculated.LCRH - scope.calculated.UILAOT - scope.calculated.UILAOB));
+
+        //Gray Zone Borders
+        //top
+        var tmpTP = (scope.calculated.SPCRH / 2 - scope.calculated.UIPAOT);
+        var tmpTL = (scope.calculated.LCRH / 2 - scope.calculated.UILAOT);
+        var minTmpTLP = Math.min(tmpTL, tmpTP, scope.calculated.LCRH / 2);
+        scope.calculated.topGrayBorder = scope.calculated.LCRH / 2 - minTmpTLP;
+
+        //bottom
+        var tmpBP = (scope.calculated.SPCRH / 2 - scope.calculated.UIPAOB);
+        var tmpBL = (scope.calculated.LCRH / 2 - scope.calculated.UILAOB);
+        var minTmpBLP = Math.min(tmpBL, tmpBP, scope.calculated.LCRH / 2);
+        scope.calculated.bottomGrayBorder = scope.calculated.LCRH / 2 - minTmpBLP;
+
+        //left
+        var tmpLP = (scope.calculated.NLCRW / 2 - scope.calculated.UILAOL);
+        var tmpLL = (scope.calculated.PCRW / 2 - scope.calculated.UIPAOL);
+        var minTmpLLP = Math.min(tmpLL, tmpLP, scope.calculated.PCRW / 2);
+        scope.calculated.leftGrayBorder = scope.calculated.PCRW / 2 - minTmpLLP;
+
+        //right
+        var tmpRP = (scope.calculated.NLCRW / 2 - scope.calculated.UILAOR);
+        var tmpRL = (scope.calculated.PCRW / 2 - scope.calculated.UIPAOR);
+        var minTmpRLP = Math.min(tmpRL, tmpRP, scope.calculated.PCRW / 2);
+        scope.calculated.rightGrayBorder = scope.calculated.PCRW / 2 - minTmpRLP;
 
         $log.info('Clear zone: ' + scope.calculated.cleanZoneWidth + ', ' + scope.calculated.cleanZoneHeight);
         // Red Zone Size
         scope.calculated.redZoneWidth = (scope.previewProps.width - scope.calculated.PCRW) / 2;
         scope.calculated.redZoneHeight = (scope.previewProps.height - scope.calculated.LCRH) / 2;
         $log.info('redZoneWidth = ' + scope.calculated.redZoneWidth + ' , redZoneHeight = ' + scope.calculated.redZoneHeight);
-        // Gray Zone Size
-        scope.calculated.grayZoneWidth = (scope.calculated.PCRW - scope.calculated.cleanZoneWidth) / 2;
-        scope.calculated.grayZoneHeight = (scope.calculated.LCRH - scope.calculated.cleanZoneHeight) / 2;
-        $log.info('grayZoneWidth = ' + scope.calculated.grayZoneWidth + ' , grayZoneHeight = ' + scope.calculated.grayZoneHeight);
     }
 
     return {

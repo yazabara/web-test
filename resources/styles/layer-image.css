@@ -1,4 +1,5 @@
 layer-image {
+    cursor: -webkit-grab;
     position: relative;
     display: block;
     overflow: hidden;
