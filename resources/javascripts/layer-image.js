@@ -69,7 +69,7 @@ imagesApp.directive('layerImage', ['$log', 'SETTINGS', '$document', function ($l
         var UI = SETTINGS.UI;
 
         scope.settings = {
-          controlHeight : 43
+            controlHeight: 43
         };
 
         //movement props
@@ -77,9 +77,7 @@ imagesApp.directive('layerImage', ['$log', 'SETTINGS', '$document', function ($l
             x: 0,
             y: 0,
             startX: 0,
-            startY: 0,
-            wDelta: 0,//clear zone delta
-            hDelta: 0//clear zone delta
+            startY: 0
         };
 
         //calculated values
@@ -203,6 +201,44 @@ imagesApp.directive('layerImage', ['$log', 'SETTINGS', '$document', function ($l
                 initRedZone(scope);
                 initGrayZone(scope);
                 initImageMove(scope);
+
+                //zoon factor changes listener
+                scope.$watch('calculated.zoomFactor', function (newValue, oldValue) {
+                    if (!(newValue < scope.calculated.MAXZF && newValue >= scope.calculated.MINZF)) {
+                        return;
+                    }
+                    scope.calculated.zoomFactor = newValue;
+                    var newWidth = scope.imageProps.originalWidth * scope.calculated.zoomFactor * scope.calculated.PSCALE;
+                    var newHeight = scope.imageProps.originalHeight * scope.calculated.zoomFactor * scope.calculated.PSCALE;
+                    var widthDiff = scope.imageProps.IDW - newWidth;
+                    var heightDiff = scope.imageProps.IDH - newHeight;
+
+                    var x = scope.moveProps.x + (widthDiff / 2);
+                    var y = scope.moveProps.x + (heightDiff / 2);
+
+                    initImageZoom(scope);
+                    //check borders
+                    var endXImage = x + newWidth;
+                    var endYImage = y + newHeight;
+
+                    if (x > 0) {
+                        x = 0;
+                    }
+
+                    if (endXImage < scope.previewProps.width) {
+                        x = scope.previewProps.width - newWidth;
+                    }
+
+                    if (y > 0) {
+                        y = 0;
+                    }
+
+                    if (endYImage < scope.previewProps.height) {
+                        x = scope.previewProps.height - newHeight;
+                    }
+                    //move image
+                    moveImage(scope, x, y);
+                }, true);
             }
         );
     }
@@ -217,6 +253,15 @@ imagesApp.directive('layerImage', ['$log', 'SETTINGS', '$document', function ($l
         element.css('border-right', right + "px solid " + rgba);
         element.css('border-top', top + "px solid " + rgba);
         element.css('border-bottom', bottom + "px solid " + rgba);
+    }
+
+    function moveImage(scope, newX, newY) {
+        scope.moveProps.x = newX;
+        scope.moveProps.y = newY;
+        scope.layers.imageLayer.css({
+            left: scope.moveProps.x + 'px',
+            top: scope.moveProps.y + 'px'
+        });
     }
 
     /**
@@ -274,6 +319,11 @@ imagesApp.directive('layerImage', ['$log', 'SETTINGS', '$document', function ($l
             scope.moveProps.startY = event.pageY - scope.moveProps.y;
             scope.layers.glassLayer.on('mousemove', mousemove);
             scope.layers.glassLayer.on('mouseup', mouseup);
+            ///TODO
+            scope.layers.imageLayer.css({
+                left: scope.moveProps.x + 'px',
+                top: scope.moveProps.y + 'px'
+            });
         });
 
         function mousemove(event) {
@@ -282,13 +332,13 @@ imagesApp.directive('layerImage', ['$log', 'SETTINGS', '$document', function ($l
             var endXImage = x + scope.imageProps.IDW;
             var endYImage = y + scope.imageProps.IDH;
 
-            if (x < 0 &&  endXImage > scope.previewProps.width) {
+            if (x < 0 && endXImage > scope.previewProps.width) {
                 scope.moveProps.x = x;
                 scope.layers.imageLayer.css({
                     left: x + 'px'
                 });
             }
-            if ( y < 0 && endYImage > scope.previewProps.height) {
+            if (y < 0 && endYImage > scope.previewProps.height) {
                 scope.moveProps.y = y;
                 scope.layers.imageLayer.css({
                     top: y + 'px'
