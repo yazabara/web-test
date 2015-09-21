@@ -1,9 +1,12 @@
 layer-image {
-    cursor: -webkit-grab;
     position: relative;
     display: block;
     overflow: hidden;
     border: 1px solid #ccc;
+}
+
+layer-image .glass {
+    cursor: -webkit-grab;
 }
 
 layer-image .red {
@@ -20,7 +23,36 @@ layer-image .gray {
     z-index: 42;
 }
 
+layer-image .white-border:before {
+    content: " ";
+    position: absolute;
+    z-index: -1;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border: 1px solid white;
+}
+
 layer-image img.cropped-image {
     position: absolute;
     z-index: 41;
 }
+layer-image .control-wrapper {
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    height: 44px;
+    padding: 10px;
+    z-index: 45;
+    border-top: 1px solid white;
+}
+layer-image .control-wrapper > div {
+    width: 90%;
+    margin: auto;
+}
+
+layer-image .control-wrapper div .slider{
+    z-index: 44;
+}
+

@@ -1,6 +1,6 @@
 'use strict';
 
-var imagesApp = angular.module('LayersImageApp', [], function () {
+var imagesApp = angular.module('LayersImageApp', ['ui.bootstrap-slider'], function () {
 
 }).constant('SETTINGS', {
     //settings from CONFIGURATION:
@@ -58,6 +58,8 @@ var imagesApp = angular.module('LayersImageApp', [], function () {
 
 imagesApp.controller('Controller', ['$scope', '$log', function ($scope, $log) {
     $log.info('controller was initialized');
+
+    $scope.slider = 250;
 }]);
 
 imagesApp.directive('layerImage', ['$log', 'SETTINGS', '$document', function ($log, SETTINGS, $document) {
@@ -65,6 +67,11 @@ imagesApp.directive('layerImage', ['$log', 'SETTINGS', '$document', function ($l
     function link(scope, element, attrs) {
         var Devices = SETTINGS.Devices;
         var UI = SETTINGS.UI;
+
+        scope.settings = {
+          controlHeight : 44
+        };
+
         //movement props
         scope.moveProps = {
             x: 0,
@@ -101,6 +108,8 @@ imagesApp.directive('layerImage', ['$log', 'SETTINGS', '$document', function ($l
             MINZF: 0,
             // MaxZoonFactor (MAXZF)
             MAXZF: 0,
+            // zoom step (range minZf -> maxZf)
+            zoomStep: 0.1,
             PSCALE: 0,
             // UI Portrait Relative Offsets
             UIPROL: UI.Overlays.Portrait.Left / Devices.Portrait.ScreenSize.Width.Min,
@@ -137,7 +146,8 @@ imagesApp.directive('layerImage', ['$log', 'SETTINGS', '$document', function ($l
 
         //selectors
         scope.layers = {
-            glassLayer: element,
+            directiveElement: element,
+            glassLayer: element.find('div.glass'),
             redLayer: element.find('div.red'),
             imageLayer: element.find('img.cropped-image'),
             grayLayer: element.find('div.gray')
@@ -183,6 +193,8 @@ imagesApp.directive('layerImage', ['$log', 'SETTINGS', '$document', function ($l
                 $log.info('PSCALE = ' + scope.calculated.PSCALE);
                 //set preview size
                 setElementSize(element, scope.previewProps.width, scope.previewProps.height);
+                //set glass size (without controls)
+                setElementSize(scope.layers.glassLayer, scope.previewProps.width, scope.previewProps.height - scope.settings.controlHeight);
                 //recalculate zoomFactor
                 calculateZoomFactor(scope);
                 initImageZoom(scope);
@@ -260,8 +272,8 @@ imagesApp.directive('layerImage', ['$log', 'SETTINGS', '$document', function ($l
             event.preventDefault();
             scope.moveProps.startX = event.pageX - scope.moveProps.x;
             scope.moveProps.startY = event.pageY - scope.moveProps.y;
-            $document.on('mousemove', mousemove);
-            $document.on('mouseup', mouseup);
+            scope.layers.glassLayer.on('mousemove', mousemove);
+            scope.layers.glassLayer.on('mouseup', mouseup);
         });
 
         function mousemove(event) {
@@ -284,8 +296,8 @@ imagesApp.directive('layerImage', ['$log', 'SETTINGS', '$document', function ($l
         }
 
         function mouseup() {
-            $document.off('mousemove', mousemove);
-            $document.off('mouseup', mouseup);
+            scope.layers.glassLayer.off('mousemove', mousemove);
+            scope.layers.glassLayer.off('mouseup', mouseup);
         }
     }
 
@@ -305,13 +317,13 @@ imagesApp.directive('layerImage', ['$log', 'SETTINGS', '$document', function ($l
         scope.calculated.NLCRW = scope.previewProps.width * Devices.Landscape.AspectRatio.Low;
         // UI Portrait Overlay Actual Px Offsets
         scope.calculated.UIPAOL = scope.calculated.UIPROL * scope.calculated.PCRW;
-        scope.calculated.UIPAOT = scope.calculated.UIPROT * scope.calculated.SPCRH;//TODO
+        scope.calculated.UIPAOT = scope.calculated.UIPROT * scope.calculated.SPCRH;
         scope.calculated.UIPAOR = scope.calculated.UIPROR * scope.calculated.PCRW;
-        scope.calculated.UIPAOB = scope.calculated.UIPROB * scope.calculated.SPCRH;//TODO
+        scope.calculated.UIPAOB = scope.calculated.UIPROB * scope.calculated.SPCRH;
         // UI Landscape Overlay Actual Px Offsets
-        scope.calculated.UILAOL = scope.calculated.UILROL * scope.calculated.NLCRW;//TODO
+        scope.calculated.UILAOL = scope.calculated.UILROL * scope.calculated.NLCRW;
         scope.calculated.UILAOT = scope.calculated.UILROT * scope.calculated.LCRH;
-        scope.calculated.UILAOR = scope.calculated.UILROR * scope.calculated.NLCRW;//TODO
+        scope.calculated.UILAOR = scope.calculated.UILROR * scope.calculated.NLCRW;
         scope.calculated.UILAOB = scope.calculated.UILROB * scope.calculated.LCRH;
 
         $log.info('PCRW: ' + scope.calculated.PCRW + ', LCRH: ' + scope.calculated.LCRH);

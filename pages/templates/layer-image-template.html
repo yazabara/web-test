@@ -1,3 +1,9 @@
-<div class="red"></div>
-<div class="gray"></div>
-<img class="cropped-image" src="{{imgSrc}}"/>
+<div class="glass">
+    <div class="red white-border"></div>
+    <div class="gray white-border"></div>
+    <img class="cropped-image" src="{{imgSrc}}"/>
+</div>
+<div class="control-wrapper">
+    <slider ng-model="slider" min="calculated.MINZF" step="calculated.zoomStep" max="calculated.MAXZF" value="calculated.zoomFactor"></slider>
+</div>
+
