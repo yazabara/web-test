@@ -59,7 +59,9 @@ var imagesApp = angular.module('LayersImageApp', ['ui.bootstrap-slider'], functi
 imagesApp.controller('Controller', ['$scope', '$log', function ($scope, $log) {
     $log.info('controller was initialized');
 
-    $scope.slider = 250;
+    $scope.resultCallback = function(result) {
+        $log.info(result.zoomFactor + ' center : ' + result.center.x + ', ' + result.center.y);
+    }
 }]);
 
 imagesApp.directive('layerImage', ['$log', 'SETTINGS', '$document', function ($log, SETTINGS, $document) {
@@ -133,19 +135,23 @@ imagesApp.directive('layerImage', ['$log', 'SETTINGS', '$document', function ($l
             cleanZoneWidth: 0,
             cleanZoneHeight: 0,
             // Red Zone Size
-            redZoneWidth: 0,
-            redZoneHeight: 0,
+            redZoneWidth: 0,//width of one border for red zone
+            redZoneHeight: 0,//height of single border for red zone
             //borders for gray zone
             leftGrayBorder: 0,
             rightGrayBorder: 0,
             topGrayBorder: 0,
-            bottomGrayBorder: 0
+            bottomGrayBorder: 0,
+            //
+            centerGrayX: 0,
+            centerGrayY: 0
         };
 
         //selectors
         scope.layers = {
             directiveElement: element,
             glassLayer: element.find('div.glass'),
+            centerLayer: element.find('div.center'),
             redLayer: element.find('div.red'),
             imageLayer: element.find('img.cropped-image'),
             grayLayer: element.find('div.gray')
@@ -174,21 +180,21 @@ imagesApp.directive('layerImage', ['$log', 'SETTINGS', '$document', function ($l
                     originalHeight: this.naturalHeight,
                     aspectRatio: this.naturalHeight == 0 ? 1 : this.naturalWidth / this.naturalHeight
                 });
-                $log.info('Image: (w: ' + scope.imageProps.originalWidth + ', h: ' + scope.imageProps.originalHeight + ', ap: ' + scope.imageProps.aspectRatio + ')');
+                //$log.info('Image: (w: ' + scope.imageProps.originalWidth + ', h: ' + scope.imageProps.originalHeight + ', ap: ' + scope.imageProps.aspectRatio + ')');
 
                 // max device aspect ratio
                 scope.calculated.MAXDAR = scope.calculated.MAXDW / scope.calculated.MAXDH;
-                $log.info('MAXDAR = ' + scope.calculated.MAXDAR);
+                //$log.info('MAXDAR = ' + scope.calculated.MAXDAR);
 
                 //fill preview props
                 angular.extend(scope.previewProps, {
                     width: attrs.width,
                     height: attrs.width / scope.calculated.MAXDAR//scope.imageProps.aspectRatio, //PreviewHeight PH = PW / IAR
                 });
-                $log.info('Preview: (w: ' + scope.previewProps.width + ', h: ' + scope.previewProps.height + ', original height: ' + element.height() + ')');
+                //$log.info('Preview: (w: ' + scope.previewProps.width + ', h: ' + scope.previewProps.height + ', original height: ' + element.height() + ')');
 
                 scope.calculated.PSCALE = scope.previewProps.width / scope.calculated.MAXDW;
-                $log.info('PSCALE = ' + scope.calculated.PSCALE);
+                //$log.info('PSCALE = ' + scope.calculated.PSCALE);
                 //set preview size (with controls)
                 setElementSize(element, scope.previewProps.width, scope.previewProps.height + scope.settings.controlHeight);
                 //set glass size
@@ -202,7 +208,7 @@ imagesApp.directive('layerImage', ['$log', 'SETTINGS', '$document', function ($l
                 initGrayZone(scope);
                 initImageMove(scope);
 
-                //zoon factor changes listener
+                //zoom factor changes listener
                 scope.$watch('calculated.zoomFactor', function (newValue, oldValue) {
                     if (!(newValue < scope.calculated.MAXZF && newValue >= scope.calculated.MINZF)) {
                         return;
@@ -238,9 +244,35 @@ imagesApp.directive('layerImage', ['$log', 'SETTINGS', '$document', function ($l
                     }
                     //move image
                     moveImage(scope, x, y);
+                    fillResult(scope);
                 }, true);
+                fillResult(scope);
             }
         );
+    }
+
+    function fillResult (scope) {
+        var result = {
+            zoomFactor: scope.calculated.zoomFactor,
+            center : calculateGrayCenter(scope)
+        };
+        scope.callBackMethod({imageLayerResult: result});
+    }
+
+    /**
+     * Method calculate result center for grayZone in range 0-1
+     */
+    function calculateGrayCenter(scope) {
+        var leftPoint = scope.calculated.redZoneWidth + scope.calculated.leftGrayBorder;
+        var topPoint = scope.calculated.redZoneHeight + scope.calculated.topGrayBorder;
+        var centerX = (leftPoint + scope.calculated.cleanZoneWidth / 2);
+        var centerY = (topPoint + scope.calculated.cleanZoneHeight / 2);
+
+        return {
+            x: ((centerX - scope.moveProps.x) / scope.imageProps.IDW),
+            y: ((centerY - scope.moveProps.y) / scope.imageProps.IDH)
+        }
+
     }
 
     function setElementSize(element, width, height) {
@@ -276,7 +308,7 @@ imagesApp.directive('layerImage', ['$log', 'SETTINGS', '$document', function ($l
         scope.calculated.MAXZF = ( scope.calculated.MINZF >= 1 ? scope.calculated.MINZF : Math.min(scope.imageProps.originalWidth / scope.calculated.MAXDW, scope.imageProps.originalHeight / scope.calculated.MAXDW) );
         // note: MAXZF==MINZF means that no zooming is allowed
         scope.calculated.zoomFactor = (!scope.previewProps.zoomFactor || (scope.calculated.zoomFactor < scope.calculated.MAXZF && scope.calculated.zoomFactor >= scope.calculated.MINZF)) ? scope.calculated.zoomFactor : scope.calculated.MINZF;
-        $log.info('MINZF = ' + scope.calculated.MINZF + ' , MAXZF = ' + scope.calculated.MAXZF + ' , zoomFactor = ' + scope.calculated.zoomFactor);
+        //$log.info('MINZF = ' + scope.calculated.MINZF + ' , MAXZF = ' + scope.calculated.MAXZF + ' , zoomFactor = ' + scope.calculated.zoomFactor);
     }
 
     /**
@@ -288,7 +320,7 @@ imagesApp.directive('layerImage', ['$log', 'SETTINGS', '$document', function ($l
         scope.imageProps.IDW = scope.imageProps.originalWidth * scope.calculated.zoomFactor * scope.calculated.PSCALE;
         // ImageDivHeight (IDH)
         scope.imageProps.IDH = scope.imageProps.originalHeight * scope.calculated.zoomFactor * scope.calculated.PSCALE;
-        $log.info('IDW = ' + scope.imageProps.IDW + ' , IDH = ' + scope.imageProps.IDH);
+        //$log.info('IDW = ' + scope.imageProps.IDW + ' , IDH = ' + scope.imageProps.IDH);
         scope.layers.imageLayer.css('width', scope.imageProps.IDW);
         scope.layers.imageLayer.css('height', scope.imageProps.IDH);
     }
@@ -319,7 +351,7 @@ imagesApp.directive('layerImage', ['$log', 'SETTINGS', '$document', function ($l
             scope.moveProps.startY = event.pageY - scope.moveProps.y;
             scope.layers.glassLayer.on('mousemove', mousemove);
             scope.layers.glassLayer.on('mouseup', mouseup);
-            ///TODO
+            ///TODO init with params
             scope.layers.imageLayer.css({
                 left: scope.moveProps.x + 'px',
                 top: scope.moveProps.y + 'px'
@@ -344,6 +376,7 @@ imagesApp.directive('layerImage', ['$log', 'SETTINGS', '$document', function ($l
                     top: y + 'px'
                 });
             }
+            fillResult(scope);
         }
 
         function mouseup() {
@@ -377,7 +410,7 @@ imagesApp.directive('layerImage', ['$log', 'SETTINGS', '$document', function ($l
         scope.calculated.UILAOR = scope.calculated.UILROR * scope.calculated.NLCRW;
         scope.calculated.UILAOB = scope.calculated.UILROB * scope.calculated.LCRH;
 
-        $log.info('PCRW: ' + scope.calculated.PCRW + ', LCRH: ' + scope.calculated.LCRH);
+        //$log.info('PCRW: ' + scope.calculated.PCRW + ', LCRH: ' + scope.calculated.LCRH);
 
         // Clear Zone Size
         scope.calculated.cleanZoneWidth = Math.min((scope.calculated.NLCRW - scope.calculated.UILAOL - scope.calculated.UILAOR), (scope.calculated.PCRW - scope.calculated.UIPAOL - scope.calculated.UIPAOR));
@@ -408,16 +441,17 @@ imagesApp.directive('layerImage', ['$log', 'SETTINGS', '$document', function ($l
         var minTmpRLP = Math.min(tmpRL, tmpRP, scope.calculated.PCRW / 2);
         scope.calculated.rightGrayBorder = scope.calculated.PCRW / 2 - minTmpRLP;
 
-        $log.info('Clear zone: ' + scope.calculated.cleanZoneWidth + ', ' + scope.calculated.cleanZoneHeight);
+        //$log.info('Clear zone: ' + scope.calculated.cleanZoneWidth + ', ' + scope.calculated.cleanZoneHeight);
         // Red Zone Size
         scope.calculated.redZoneWidth = (scope.previewProps.width - scope.calculated.PCRW) / 2;
         scope.calculated.redZoneHeight = (scope.previewProps.height - scope.calculated.LCRH) / 2;
-        $log.info('redZoneWidth = ' + scope.calculated.redZoneWidth + ' , redZoneHeight = ' + scope.calculated.redZoneHeight);
+        //$log.info('redZoneWidth = ' + scope.calculated.redZoneWidth + ' , redZoneHeight = ' + scope.calculated.redZoneHeight);
     }
 
     return {
         scope: {
-            imgSrc: '@'
+            imgSrc: '@',
+            callBackMethod:'&resultFunc'
         },
         templateUrl: "templates/layer-image-template.html",
         restrict: 'E',
