@@ -69,7 +69,7 @@ imagesApp.directive('layerImage', ['$log', 'SETTINGS', '$document', function ($l
         var UI = SETTINGS.UI;
 
         scope.settings = {
-          controlHeight : 44
+          controlHeight : 43
         };
 
         //movement props
@@ -191,10 +191,10 @@ imagesApp.directive('layerImage', ['$log', 'SETTINGS', '$document', function ($l
 
                 scope.calculated.PSCALE = scope.previewProps.width / scope.calculated.MAXDW;
                 $log.info('PSCALE = ' + scope.calculated.PSCALE);
-                //set preview size
-                setElementSize(element, scope.previewProps.width, scope.previewProps.height);
-                //set glass size (without controls)
-                setElementSize(scope.layers.glassLayer, scope.previewProps.width, scope.previewProps.height - scope.settings.controlHeight);
+                //set preview size (with controls)
+                setElementSize(element, scope.previewProps.width, scope.previewProps.height + scope.settings.controlHeight);
+                //set glass size
+                setElementSize(scope.layers.glassLayer, scope.previewProps.width, scope.previewProps.height);
                 //recalculate zoomFactor
                 calculateZoomFactor(scope);
                 initImageZoom(scope);
