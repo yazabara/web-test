@@ -59,7 +59,7 @@ var imagesApp = angular.module('LayersImageApp', ['ui.bootstrap-slider'], functi
 imagesApp.controller('Controller', ['$scope', '$log', function ($scope, $log) {
     $log.info('controller was initialized');
 
-    $scope.resultCallback = function(result) {
+    $scope.resultCallback = function (result) {
         $log.info(result.zoomFactor + ' center : ' + result.center.x + ', ' + result.center.y);
     }
 }]);
@@ -142,7 +142,7 @@ imagesApp.directive('layerImage', ['$log', 'SETTINGS', '$document', function ($l
             rightGrayBorder: 0,
             topGrayBorder: 0,
             bottomGrayBorder: 0,
-            //
+            //center point (in range 0-1)
             centerGrayX: 0,
             centerGrayY: 0
         };
@@ -151,7 +151,6 @@ imagesApp.directive('layerImage', ['$log', 'SETTINGS', '$document', function ($l
         scope.layers = {
             directiveElement: element,
             glassLayer: element.find('div.glass'),
-            centerLayer: element.find('div.center'),
             redLayer: element.find('div.red'),
             imageLayer: element.find('img.cropped-image'),
             grayLayer: element.find('div.gray')
@@ -180,70 +179,47 @@ imagesApp.directive('layerImage', ['$log', 'SETTINGS', '$document', function ($l
                     originalHeight: this.naturalHeight,
                     aspectRatio: this.naturalHeight == 0 ? 1 : this.naturalWidth / this.naturalHeight
                 });
-                //$log.info('Image: (w: ' + scope.imageProps.originalWidth + ', h: ' + scope.imageProps.originalHeight + ', ap: ' + scope.imageProps.aspectRatio + ')');
-
                 // max device aspect ratio
                 scope.calculated.MAXDAR = scope.calculated.MAXDW / scope.calculated.MAXDH;
-                //$log.info('MAXDAR = ' + scope.calculated.MAXDAR);
-
                 //fill preview props
                 angular.extend(scope.previewProps, {
                     width: attrs.width,
                     height: attrs.width / scope.calculated.MAXDAR//scope.imageProps.aspectRatio, //PreviewHeight PH = PW / IAR
                 });
-                //$log.info('Preview: (w: ' + scope.previewProps.width + ', h: ' + scope.previewProps.height + ', original height: ' + element.height() + ')');
-
                 scope.calculated.PSCALE = scope.previewProps.width / scope.calculated.MAXDW;
-                //$log.info('PSCALE = ' + scope.calculated.PSCALE);
+
                 //set preview size (with controls)
                 setElementSize(element, scope.previewProps.width, scope.previewProps.height + scope.settings.controlHeight);
                 //set glass size
                 setElementSize(scope.layers.glassLayer, scope.previewProps.width, scope.previewProps.height);
-                //recalculate zoomFactor
-                calculateZoomFactor(scope);
-                initImageZoom(scope);
-                //calculate layers borders
-                calculateLayers(scope);
-                initRedZone(scope);
-                initGrayZone(scope);
-                initImageMove(scope);
 
+                if (attrs.centerX && attrs.centerY && attrs.zoomFactor) {
+                    checkZoomFactorAndApply(scope, attrs.zoomFactor);
+                    initImageZoom(scope);
+                    calculateLayers(scope);
+                    //calculate x + y
+                    calculateExistCenterPointCoordinates(scope, attrs.centerX, attrs.centerY);
+                    initRedZone(scope);
+                    initGrayZone(scope);
+                    zoomImage(scope);
+                } else {
+                    //recalculate zoomFactor
+                    initZoomFactor(scope);
+                    initImageZoom(scope);
+                    //calculate layers borders
+                    calculateLayers(scope);
+                    initRedZone(scope);
+                    initGrayZone(scope);
+                }
+
+                initImageMove(scope);
                 //zoom factor changes listener
                 scope.$watch('calculated.zoomFactor', function (newValue, oldValue) {
                     if (!(newValue < scope.calculated.MAXZF && newValue >= scope.calculated.MINZF)) {
                         return;
                     }
                     scope.calculated.zoomFactor = newValue;
-                    var newWidth = scope.imageProps.originalWidth * scope.calculated.zoomFactor * scope.calculated.PSCALE;
-                    var newHeight = scope.imageProps.originalHeight * scope.calculated.zoomFactor * scope.calculated.PSCALE;
-                    var widthDiff = scope.imageProps.IDW - newWidth;
-                    var heightDiff = scope.imageProps.IDH - newHeight;
-
-                    var x = scope.moveProps.x + (widthDiff / 2);
-                    var y = scope.moveProps.x + (heightDiff / 2);
-
-                    initImageZoom(scope);
-                    //check borders
-                    var endXImage = x + newWidth;
-                    var endYImage = y + newHeight;
-
-                    if (x > 0) {
-                        x = 0;
-                    }
-
-                    if (endXImage < scope.previewProps.width) {
-                        x = scope.previewProps.width - newWidth;
-                    }
-
-                    if (y > 0) {
-                        y = 0;
-                    }
-
-                    if (endYImage < scope.previewProps.height) {
-                        x = scope.previewProps.height - newHeight;
-                    }
-                    //move image
-                    moveImage(scope, x, y);
+                    zoomImage(scope);
                     fillResult(scope);
                 }, true);
                 fillResult(scope);
@@ -251,10 +227,56 @@ imagesApp.directive('layerImage', ['$log', 'SETTINGS', '$document', function ($l
         );
     }
 
-    function fillResult (scope) {
+    function calculateExistCenterPointCoordinates(scope, partX, partY) {
+        calculateGrayCenter(scope);
+        var diffX = scope.imageProps.IDW * ( scope.calculated.centerGrayX - partX);
+        var diffY = scope.imageProps.IDH * ( scope.calculated.centerGrayY - partY);
+        scope.moveProps.x = diffX;
+        scope.moveProps.y = diffY;
+    }
+
+    function zoomImage(scope) {
+        var newWidth = scope.imageProps.originalWidth * scope.calculated.zoomFactor * scope.calculated.PSCALE;
+        var newHeight = scope.imageProps.originalHeight * scope.calculated.zoomFactor * scope.calculated.PSCALE;
+        var widthDiff = scope.imageProps.IDW - newWidth;
+        var heightDiff = scope.imageProps.IDH - newHeight;
+
+        var x = scope.moveProps.x + (widthDiff / 2);
+        var y = scope.moveProps.y + (heightDiff / 2);
+
+        //check borders
+        var endXImage = x + newWidth;
+        var endYImage = y + newHeight;
+
+        if (x > 0) {
+            x = 0;
+        }
+
+        if (endXImage < scope.previewProps.width) {
+            x = scope.previewProps.width - newWidth;
+        }
+
+        if (y > 0) {
+            y = 0;
+        }
+
+        if (endYImage < scope.previewProps.height) {
+            y = scope.previewProps.height - newHeight;
+        }
+        //move image
+        moveImage(scope, x, y);
+    }
+
+    function checkZoomFactorAndApply(scope, zoomFactor) {
+        scope.calculated.MINZF = Math.max(scope.calculated.MAXDW / scope.imageProps.originalWidth, scope.calculated.MAXDH / scope.imageProps.originalHeight);
+        scope.calculated.MAXZF = ( scope.calculated.MINZF >= 1 ? scope.calculated.MINZF : Math.min(scope.imageProps.originalWidth / scope.calculated.MAXDW, scope.imageProps.originalHeight / scope.calculated.MAXDW) );
+        scope.calculated.zoomFactor = (zoomFactor < scope.calculated.MAXZF && scope.calculated.zoomFactor >= scope.calculated.MINZF) ? zoomFactor : scope.calculated.MINZF;
+    }
+
+    function fillResult(scope) {
         var result = {
             zoomFactor: scope.calculated.zoomFactor,
-            center : calculateGrayCenter(scope)
+            center: calculateGrayCenter(scope)
         };
         scope.callBackMethod({imageLayerResult: result});
     }
@@ -268,9 +290,12 @@ imagesApp.directive('layerImage', ['$log', 'SETTINGS', '$document', function ($l
         var centerX = (leftPoint + scope.calculated.cleanZoneWidth / 2);
         var centerY = (topPoint + scope.calculated.cleanZoneHeight / 2);
 
+        scope.calculated.centerGrayX = ((centerX - scope.moveProps.x) / scope.imageProps.IDW);
+        scope.calculated.centerGrayY = ((centerY - scope.moveProps.y) / scope.imageProps.IDH);
+
         return {
-            x: ((centerX - scope.moveProps.x) / scope.imageProps.IDW),
-            y: ((centerY - scope.moveProps.y) / scope.imageProps.IDH)
+            x: scope.calculated.centerGrayX,
+            y: scope.calculated.centerGrayY
         }
 
     }
@@ -300,19 +325,13 @@ imagesApp.directive('layerImage', ['$log', 'SETTINGS', '$document', function ($l
      * Method calculate zoomFactor connected with settings and image original size
      * @param scope
      */
-    function calculateZoomFactor(scope) {
-        scope.calculated.zoomFactor = scope.previewProps.width / scope.imageProps.originalWidth;
-        // MinZoomFactor (MINZF)
-        scope.calculated.MINZF = Math.max(scope.calculated.MAXDW / scope.imageProps.originalWidth, scope.calculated.MAXDH / scope.imageProps.originalHeight);
-        // MaxZoonFactor (MAXZF)
-        scope.calculated.MAXZF = ( scope.calculated.MINZF >= 1 ? scope.calculated.MINZF : Math.min(scope.imageProps.originalWidth / scope.calculated.MAXDW, scope.imageProps.originalHeight / scope.calculated.MAXDW) );
-        // note: MAXZF==MINZF means that no zooming is allowed
-        scope.calculated.zoomFactor = (!scope.previewProps.zoomFactor || (scope.calculated.zoomFactor < scope.calculated.MAXZF && scope.calculated.zoomFactor >= scope.calculated.MINZF)) ? scope.calculated.zoomFactor : scope.calculated.MINZF;
-        //$log.info('MINZF = ' + scope.calculated.MINZF + ' , MAXZF = ' + scope.calculated.MAXZF + ' , zoomFactor = ' + scope.calculated.zoomFactor);
+    function initZoomFactor(scope) {
+        checkZoomFactorAndApply(scope, scope.previewProps.width / scope.imageProps.originalWidth);
     }
 
     /**
      * Method zooming image depends on zoomFactor (precalculated)
+     * without x,y delta
      * @param scope
      */
     function initImageZoom(scope) {
@@ -451,7 +470,7 @@ imagesApp.directive('layerImage', ['$log', 'SETTINGS', '$document', function ($l
     return {
         scope: {
             imgSrc: '@',
-            callBackMethod:'&resultFunc'
+            callBackMethod: '&resultFunc'
         },
         templateUrl: "templates/layer-image-template.html",
         restrict: 'E',
