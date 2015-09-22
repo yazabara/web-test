@@ -4,9 +4,17 @@
     <img class="cropped-image" src="{{imgSrc}}"/>
 </div>
 <div class="control-wrapper" >
-    <slider ng-class="{ 'hidden' : calculated.MAXZF == calculated.MINZF}" ng-model="calculated.zoomFactor" min="calculated.MINZF" step="calculated.zoomStep" max="calculated.MAXZF" value="calculated.zoomFactor"></slider>
+
+    <slider ng-class="{ 'hidden' : calculated.MAXZF == calculated.MINZF}"
+            ng-model="calculated.zoomFactor"
+            min="calculated.MINZF"
+            step="calculated.zoomStep"
+            max="calculated.MAXZF"
+            value="calculated.zoomFactor">
+
+    </slider>
     <span ng-class="{ 'hidden' : calculated.MAXZF != calculated.MINZF}" class="control-message">
-        No zoom options
+        Zooming not available: low-res image
     </span>
 
 </div>

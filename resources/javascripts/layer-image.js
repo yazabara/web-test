@@ -377,6 +377,7 @@ imagesApp.directive('layerImage', ['$log', 'SETTINGS', '$document', function ($l
             scope.moveProps.startY = event.pageY - scope.moveProps.y;
             scope.layers.glassLayer.on('mousemove', mousemove);
             scope.layers.glassLayer.on('mouseup', mouseup);
+            scope.layers.glassLayer.on('mouseleave', mouseup);
             ///TODO init with params
             scope.layers.imageLayer.css({
                 left: scope.moveProps.x + 'px',
@@ -479,7 +480,7 @@ imagesApp.directive('layerImage', ['$log', 'SETTINGS', '$document', function ($l
             imgSrc: '@',
             callBackMethod: '&resultFunc'
         },
-        templateUrl: "pages/templates/layer-image-template.html",
+        templateUrl: "templates/layer-image-template.html",
         restrict: 'E',
         link: link
     }
