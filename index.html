@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html ng-app="LayersImageApp">
+<head>
+    <meta charset="utf-8"/>
+    <title>Image zones</title>
+    <meta name="author" content=""/>
+    <meta name="keywords" content=""/>
+    <meta name="description" content=""/>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+
+    <!-- favicon -->
+    <link type="image/png" rel="shortcut icon" href="resources/images/favicon.png"/>
+    <!-- bootstrap -->
+    <link rel="stylesheet" href="resources/styles/libs/bootstrap.css">
+    <link rel="stylesheet" href="resources/styles/libs/bootstrap.css.map">
+    <!-- custom -->
+    <link rel="stylesheet" href="resources/styles/layer-image.css"/>
+
+</head>
+<body>
+
+<div ng-controller="Controller">
+    <div class="container">
+
+        <div class="col-md-12">
+            <layer-image class="" data-width="500" img-src="resources/images/image.jpg"></layer-image>
+        </div>
+
+        <div class="col-md-12">
+            <layer-image class="" data-width="500" img-src="resources/images/image-1.jpg"></layer-image>
+        </div>
+
+        <div class="col-md-12">
+            <layer-image class="" data-width="500" img-src="resources/images/image-2.jpg"></layer-image>
+        </div>
+
+    </div>
+</div>
+
+<!-- libs -->
+<script src="resources/javascripts/libs/jquery.min.js"></script>
+<script src="resources/javascripts/libs/lodash.min.js"></script>
+<script src="resources/javascripts/libs/bootstrap.min.js"></script>
+<script src="resources/javascripts/libs/angular.min.js"></script>
+<!-- custom -->
+<script type="text/javascript" src="resources/javascripts/layer-image.js"></script>
+</body>
+</html>
+
