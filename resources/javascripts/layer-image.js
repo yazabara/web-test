@@ -480,7 +480,7 @@ imagesApp.directive('layerImage', ['$log', 'SETTINGS', '$document', function ($l
             imgSrc: '@',
             callBackMethod: '&resultFunc'
         },
-        templateUrl: "templates/layer-image-template.html",
+        templateUrl: "pages/templates/layer-image-template.html",
         restrict: 'E',
         link: link
     }
