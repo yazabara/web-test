@@ -17,28 +17,80 @@
     <!-- custom -->
     <link rel="stylesheet" href="../resources/styles/layer-image.css"/>
 
+    <style>
+        body {
+            background: -webkit-linear-gradient(90deg, #D3959B 10%, #BFE6BA 90%); /* Chrome 10+, Saf5.1+ */
+            background: -moz-linear-gradient(90deg, #D3959B 10%, #BFE6BA 90%); /* FF3.6+ */
+            background: -ms-linear-gradient(90deg, #D3959B 10%, #BFE6BA 90%); /* IE10 */
+            background: -o-linear-gradient(90deg, #D3959B 10%, #BFE6BA 90%); /* Opera 11.10+ */
+            background: linear-gradient(90deg, #D3959B 10%, #BFE6BA 90%); /* W3C */
+        }
+    </style>
+
 </head>
 <body>
 
 <div ng-controller="Controller">
     <div class="container">
 
-        <div class="col-md-12">
-            <layer-image class="" data-width="500" img-src="../resources/images/image.jpg"
-                         data-zoom-factor="2.4"
-                         data-center-x="1"
-                         data-center-y="0.48828125000000006"
-                         data-result-func="resultCallback(imageLayerResult)"></layer-image>
+        <div class="row">
+            <div class="col-md-3">
+                <layer-image class="" data-width="208" img-src="../resources/images/image.jpg"
+                             data-zoom-factor="2.4"
+                             data-center-x="1"
+                             data-center-y="0.48828125000000006"
+                             data-result-func="resultCallback(imageLayerResult)"></layer-image>
+            </div>
+            <div class="col-md-3">
+                <layer-image class="" data-width="208" img-src="../resources/images/image-1.jpg"
+                             data-zoom-factor="0.49"
+                             data-center-x="0.54"
+                             data-center-y="0.61"
+                             data-result-func="resultCallback(imageLayerResult)"></layer-image>
+            </div>
+            <div class="col-md-3">
+                <layer-image class="" data-width="208" img-src="../resources/images/image-2.jpg"
+                             data-zoom-factor="1.8"
+                             data-center-x="0.50"
+                             data-center-y="0.50"
+                             data-result-func="resultCallback(imageLayerResult)"></layer-image>
+            </div>
+            <div class="col-md-3">
+                <layer-image class="" data-width="208" img-src="../resources/images/image-2.jpg"
+                             data-zoom-factor="2"
+                             data-center-x="1"
+                             data-center-y="1"
+                             data-result-func="resultCallback(imageLayerResult)"></layer-image>
+            </div>
         </div>
 
-        <!--<div class="col-md-12">-->
-            <!--<layer-image class="" data-width="500" img-src="../resources/images/image-1.jpg"-->
-                         <!--data-result-func="resultCallback(imageLayerResult)"></layer-image>-->
-        <!--</div>-->
+        <div class="row">
+            <div class="col-md-6">
+                <layer-image class="" data-width="500" img-src="../resources/images/image.jpg"
+                             data-zoom-factor="2.4"
+                             data-center-x="1"
+                             data-center-y="0.48828125000000006"
+                             data-result-func="resultCallback(imageLayerResult)"></layer-image>
+            </div>
+            <div class="col-md-6">
+                <layer-image class="" data-width="500" img-src="../resources/images/image-1.jpg"
+                             data-result-func="resultCallback(imageLayerResult)"></layer-image>
+            </div>
 
-        <!--<div class="col-md-12">-->
-        <!--<layer-image class="" data-width="500" img-src="../resources/images/image-2.jpg"></layer-image>-->
-        <!--</div>-->
+        </div>
+
+        <div class="row">
+            <div class="col-md-12">
+                <layer-image class="" data-width="1085" img-src="../resources/images/image-1.jpg"
+                             data-result-func="resultCallback(imageLayerResult)"></layer-image>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-12">
+                <layer-image class="" data-width="1085" img-src="../resources/images/image-2.jpg"></layer-image>
+            </div>
+        </div>
 
     </div>
 </div>
