@@ -85,10 +85,10 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
         scope.settings = {
             controlHeight: 43,
             phone: {
-                left: 20,
-                top: 40,
-                right: 20,
-                bottom: 70
+                left: 15,
+                top: 20,
+                right: 15,
+                bottom: 50
             }
         };
 
@@ -284,6 +284,7 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
         initRedZone(scope);
         initGrayZone(scope);
         zoomImage(scope);
+        initPhoneLayer(scope);
     }
 
     function initDefaultDirective(scope) {
@@ -315,6 +316,7 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
         initRedZone(scope);
         initGrayZone(scope);
         zoomImage(scope);
+        initPhoneLayer(scope);
     }
 
     function calculateExistCenterPointCoordinates(scope, partX, partY) {
@@ -476,16 +478,17 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
 
         setElementSize(scope.layers.phoneLayer, phoneWidth, phoneHeight);
         //circle
-        var circleDimension = redZoneW / 10;
+        var circleDimension = scope.settings.phone.top / 2;
         setElementSize(scope.layers.phoneLayer.find('.phone-circle'), circleDimension , circleDimension);
         scope.layers.phoneLayer.find('.phone-circle').css('margin-top', scope.settings.phone.top / 4);
         //line
         var lineW = redZoneW / 3;
-        setElementSize(scope.layers.phoneLayer.find('.phone-line'), lineW , 5);
+        setElementSize(scope.layers.phoneLayer.find('.phone-line'), lineW , scope.settings.phone.top / 7);
         scope.layers.phoneLayer.find('.phone-line').css('margin-top', scope.settings.phone.top / 2.2);
 
         scope.layers.phoneLayer.css('left', scope.calculated.redZoneWidth - scope.settings.phone.left);
         scope.layers.phoneLayer.css('top', scope.calculated.redZoneHeight - scope.settings.phone.top);
+        scope.layers.phoneLayer.css('border-radius', Math.min((scope.settings.phone.top + scope.settings.phone.bottom) / 2 , (scope.settings.phone.left + scope.settings.phone.right) / 2));
     }
 
     function initImageMove(scope) {
