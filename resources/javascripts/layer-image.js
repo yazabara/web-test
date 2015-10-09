@@ -85,9 +85,9 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
         scope.settings = {
             controlHeight: 43,
             phone: {
-                left: 15,
-                top: 20,
-                right: 15,
+                left: 10,
+                top: 40,
+                right: 10,
                 bottom: 50
             }
         };
@@ -118,14 +118,10 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
             MAXDH: Math.max(Devices.portrait.screenSize.height.max, Devices.landscape.screenSize.height.max),
             // MaxDeviceWidth (MAXDH)
             MAXDW: Math.max(Devices.portrait.screenSize.width.max, Devices.landscape.screenSize.width.max),
-            // AV20150928 - no longer needed
-            // Max device aspect ratio
-            // MAXDAR : 0,
-            //
             // Current zoom factor
             zoomFactor: 0,
             // MinZoomFactor (MINZF)
-            MINZF: 0,
+            MINZF: 1,
             // MaxZoonFactor (MAXZF)
             MAXZF: 0,
             // zoom step (range minZf -> maxZf)
@@ -202,22 +198,11 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
                 originalHeight: this.naturalHeight,
                 aspectRatio: this.naturalHeight == 0 ? 1 : this.naturalWidth / this.naturalHeight
             });
-            // max device aspect ratio
-            //
-            // AV20150928 no need to calculate MAXDAR - and this calculation is incorrect - the correct value is configured in Devices.portrait.aspectRatio.high
-            // scope.calculated.MAXDAR = scope.calculated.MAXDW / scope.calculated.MAXDH;
-            //
             // fill preview props
             angular.extend(scope.previewProps, {
                 width: attrs.width,
-                // AV20150928
-                // height : attrs.width / scope.calculated.MAXDAR//scope.imageProps.aspectRatio, //PreviewHeight PH = PW / IAR
-                height: attrs.width / Math.max(Devices.portrait.aspectRatio.high, Devices.landscape.aspectRatio.high) // AV20150928 scope.calculated.MAXDAR//scope.imageProps.aspectRatio, //PreviewHeight PH = PW / IAR
+                height: attrs.width / Math.max(Devices.portrait.aspectRatio.high, Devices.landscape.aspectRatio.high)
             });
-            // AV20150928 - PSCALE is now calculated depending on MINZF calculation method
-            // scope.calculated.PSCALE = scope.previewProps.width / scope.calculated.MAXDW;
-            // AV20150928 - moved ZF min/max calculation from checkZoomFactorAndApply - shall be done only once
-            scope.calculated.MINZF = 1;
             var imageAspectRatio = scope.imageProps.originalWidth / scope.imageProps.originalHeight;
             var previewAspectRatio = scope.previewProps.width / scope.previewProps.height;
             if (imageAspectRatio >= previewAspectRatio) { // image wider than preview
@@ -240,7 +225,7 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
             }
             //
             // set preview size (with controls)
-            setElementSize(element, scope.previewProps.width, scope.previewProps.height + scope.settings.controlHeight);
+            setElementSize(element, scope.previewProps.width, scope.previewProps.height + (scope.settings.controlHeight * 3));
             // set glass size
             setElementSize(scope.layers.glassLayer, scope.previewProps.width, scope.previewProps.height);
 
@@ -470,25 +455,35 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
      * @param scope
      */
     function initPhoneLayer(scope) {
-        var redZoneW = (scope.previewProps.width - 2 * scope.calculated.redZoneWidth);
-        var redZoneH = (scope.previewProps.height - 2 * scope.calculated.redZoneHeight);
-
-        var phoneWidth = redZoneW + scope.settings.phone.left + scope.settings.phone.right;
-        var phoneHeight = redZoneH + scope.settings.phone.top + scope.settings.phone.bottom;
-
+        var displayW = (scope.previewProps.width - 2 * scope.calculated.redZoneWidth);
+        var displayH = (scope.previewProps.height - 2 * scope.calculated.redZoneHeight);
+        var phoneWidth = displayW + scope.settings.phone.left + scope.settings.phone.right;
+        var phoneHeight = displayH + scope.settings.phone.top + scope.settings.phone.bottom;
+        //phone
         setElementSize(scope.layers.phoneLayer, phoneWidth, phoneHeight);
-        //circle
-        var circleDimension = scope.settings.phone.top / 2;
-        setElementSize(scope.layers.phoneLayer.find('.phone-circle'), circleDimension , circleDimension);
-        scope.layers.phoneLayer.find('.phone-circle').css('margin-top', scope.settings.phone.top / 4);
-        //line
-        var lineW = redZoneW / 3;
-        setElementSize(scope.layers.phoneLayer.find('.phone-line'), lineW , scope.settings.phone.top / 7);
-        scope.layers.phoneLayer.find('.phone-line').css('margin-top', scope.settings.phone.top / 2.2);
-
         scope.layers.phoneLayer.css('left', scope.calculated.redZoneWidth - scope.settings.phone.left);
         scope.layers.phoneLayer.css('top', scope.calculated.redZoneHeight - scope.settings.phone.top);
-        scope.layers.phoneLayer.css('border-radius', Math.min((scope.settings.phone.top + scope.settings.phone.bottom) / 2 , (scope.settings.phone.left + scope.settings.phone.right) / 2));
+        scope.layers.phoneLayer.css('border-radius', (scope.settings.phone.top + scope.settings.phone.bottom + scope.settings.phone.left + scope.settings.phone.right) / 4);
+        //camera
+        var circleDimension = scope.settings.phone.top / 4;
+        setElementSize(scope.layers.phoneLayer.find('.phone-camera'), circleDimension, circleDimension);
+        scope.layers.phoneLayer.find('.phone-camera').css('top', -(scope.settings.phone.top / 2) - (circleDimension / 2));
+        scope.layers.phoneLayer.find('.phone-camera').css('left', (phoneWidth / 5) - scope.settings.phone.left);
+        //dynamic
+        var lineW = displayW / 4;
+        var lineH = scope.settings.phone.top / 7;
+        setElementSize(scope.layers.phoneLayer.find('.phone-dynamic'), lineW, lineH);
+        scope.layers.phoneLayer.find('.phone-dynamic').css('top', -(scope.settings.phone.top / 2) - (lineH / 2));
+        scope.layers.phoneLayer.find('.phone-dynamic').css('left', (phoneWidth / 2) - (lineW / 2) - scope.settings.phone.left);
+        //background
+        scope.layers.phoneLayer.css('border-top', 'black ' + scope.settings.phone.top + 'px solid');
+        scope.layers.phoneLayer.css('border-bottom', 'black ' + scope.settings.phone.bottom + 'px solid');
+        scope.layers.phoneLayer.css('border-right', 'black ' + scope.settings.phone.right + 'px solid');
+        scope.layers.phoneLayer.css('border-left', 'black ' + scope.settings.phone.left + 'px solid');
+        scope.layers.phoneLayer.css('padding-left', (phoneWidth - (scope.settings.phone.left + scope.settings.phone.right)) + 'px');
+        scope.layers.phoneLayer.css('padding-top', (phoneHeight - (scope.settings.phone.top + scope.settings.phone.bottom)) + '393px');
+        //display
+        setElementSize(scope.layers.phoneLayer.find('.phone-display'), displayW, displayH);
     }
 
     function initImageMove(scope) {
@@ -529,6 +524,7 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
         }
 
         function mouseup() {
+            //TODO inside phone - ok
             scope.layers.glassLayer.off('mousemove', mousemove);
             scope.layers.glassLayer.off('mouseup', mouseup);
         }
@@ -606,8 +602,9 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
             callBackMethod: '&resultFunc'
         },
         template: '<div class="phone-layer">' +
-        '<div class="phone-circle phone-top-additional"/>' +
-        '<div class="phone-line phone-top-additional"/>' +
+        '<div class="phone-camera phone-top-additional"/>' +
+        '<div class="phone-dynamic phone-top-additional"/>' +
+        '<div class="phone-display"/>' +
         '</div>' +
         '<div class="glass-wrapper">' +
         '<div class="glass">' +
