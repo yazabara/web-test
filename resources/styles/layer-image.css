@@ -1,10 +1,11 @@
 layer-image {
     position: relative;
     display: block;
-    margin-top: 50px;//TODO delete
+    margin-top: 50px;
+/ / TODO delete
 }
 
-layer-image .glass-wrapper{
+layer-image .glass-wrapper {
     overflow: hidden;
     position: relative;
     border: 1px solid #ccc;
@@ -55,23 +56,22 @@ layer-image img.cropped-image {
     z-index: 41;
     display: block !important;
 }
+
 layer-image .control-wrapper {
     position: absolute;
     bottom: 0;
     width: 100%;
-    height: 41px;
-    padding: 10px;
-    z-index: 47;
-    background-color: #204d74;
-    border-top: 1px solid white;
-}
-layer-image .control-wrapper > div {
-    width: 90%;
-    margin: auto;
 }
 
-layer-image .control-wrapper div .slider{
+layer-image .control-wrapper div .slider {
     z-index: 44;
+}
+
+layer-image .control-wrapper div .slider .slider-selection {
+    background-image: linear-gradient(to bottom, black 0, black 100%);
+    background-image: -webkit-linear-gradient(to bottom, black 0, black 100%);
+    background-image: -o-linear-gradient(to bottom, black 0, black 100%);
+    background-image: -moz-linear-gradient(to bottom, black 0, black 100%);
 }
 
 layer-image .control-wrapper .control-message {
@@ -107,4 +107,16 @@ layer-image .phone-layer .phone-display {
     top: 0;
     left: 0;
     border: 1px solid #ccc;
+    cursor: -webkit-grab;
+}
+
+layer-image .phone-layer .phone-button {
+    position: absolute;
+    border: 1px white solid;
+    border-radius: 50%;
+}
+
+layer-image .phone-layer .phone-button .phone-sub-button {
+    position: absolute;
+    border: 1px white solid;
 }

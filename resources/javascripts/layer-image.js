@@ -34,7 +34,7 @@ var imagesApp = angular.module('LayersImageApp', ['ui.bootstrap-slider'], functi
                     },
                     height: {
                         min: 640,
-                        max: 640
+                        max: 720
                     }
                 }
             }
@@ -83,13 +83,19 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
         var uiOverlays = JSON.parse(scope.ui);
 
         scope.settings = {
-            controlHeight: 43,
+            controlHeight: 100,
             phone: {
                 left: 10,
                 top: 40,
                 right: 10,
                 bottom: 50
             }
+            //phone: {
+            //    left: 4,
+            //    top: 20,
+            //    right: 4,
+            //    bottom: 30
+            //}
         };
 
         // movement props
@@ -225,7 +231,7 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
             }
             //
             // set preview size (with controls)
-            setElementSize(element, scope.previewProps.width, scope.previewProps.height + (scope.settings.controlHeight * 3));
+            setElementSize(element, scope.previewProps.width, scope.previewProps.height + scope.settings.controlHeight);
             // set glass size
             setElementSize(scope.layers.glassLayer, scope.previewProps.width, scope.previewProps.height);
 
@@ -349,11 +355,7 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
     }
 
     function checkZoomFactorAndApply(scope, zoomFactor) {
-        // AV20150928 - moved to execute earlier
-        // scope.calculated.MINZF = Math.max( scope.calculated.MAXDW / scope.imageProps.originalWidth, scope.calculated.MAXDH / scope.imageProps.originalHeight );
-        // scope.calculated.MAXZF = ( scope.calculated.MINZF >= 1 ? scope.calculated.MINZF : Math.min( scope.imageProps.originalWidth / scope.calculated.MAXDW, scope.imageProps.originalHeight / scope.calculated.MAXDW ) );
-        //
-        scope.calculated.zoomFactor = ( zoomFactor >= scope.calculated.MINZF && zoomFactor <= scope.calculated.MAXZF ) ? zoomFactor : ( zoomFactor < scope.calculated.MINZF ? scope.calculated.MINZF : scope.calculated.MAXZF ); // AV20150928 safety net (minor, potentially unnecessary improvement)
+        scope.calculated.zoomFactor = ( zoomFactor >= scope.calculated.MINZF && zoomFactor <= scope.calculated.MAXZF ) ? zoomFactor : ( zoomFactor < scope.calculated.MINZF ? scope.calculated.MINZF : scope.calculated.MAXZF );
         scope.$apply();// apply zoom factor
     }
 
@@ -412,8 +414,6 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
      * @param scope
      */
     function initZoomFactor(scope) {
-        // AV20150928 - this seems more appropriate, although I don't see this code ever getting called
-        // checkZoomFactorAndApply( scope, scope.previewProps.width / scope.imageProps.originalWidth );
         checkZoomFactorAndApply(scope, scope.calculated.MINZF);
     }
 
@@ -455,20 +455,20 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
      * @param scope
      */
     function initPhoneLayer(scope) {
-        var displayW = (scope.previewProps.width - 2 * scope.calculated.redZoneWidth);
-        var displayH = (scope.previewProps.height - 2 * scope.calculated.redZoneHeight);
-        var phoneWidth = displayW + scope.settings.phone.left + scope.settings.phone.right;
-        var phoneHeight = displayH + scope.settings.phone.top + scope.settings.phone.bottom;
+        var displayW = parseInt(scope.previewProps.width - 2 * scope.calculated.redZoneWidth);
+        var displayH = parseInt(scope.previewProps.height - 2 * scope.calculated.redZoneHeight);
+        var phoneWidth = parseInt(displayW + scope.settings.phone.left + scope.settings.phone.right);
+        var phoneHeight = parseInt(displayH + scope.settings.phone.top + scope.settings.phone.bottom);
         //phone
         setElementSize(scope.layers.phoneLayer, phoneWidth, phoneHeight);
         scope.layers.phoneLayer.css('left', scope.calculated.redZoneWidth - scope.settings.phone.left);
         scope.layers.phoneLayer.css('top', scope.calculated.redZoneHeight - scope.settings.phone.top);
         scope.layers.phoneLayer.css('border-radius', (scope.settings.phone.top + scope.settings.phone.bottom + scope.settings.phone.left + scope.settings.phone.right) / 4);
         //camera
-        var circleDimension = scope.settings.phone.top / 4;
+        var circleDimension = parseInt(scope.settings.phone.top / 3);
         setElementSize(scope.layers.phoneLayer.find('.phone-camera'), circleDimension, circleDimension);
         scope.layers.phoneLayer.find('.phone-camera').css('top', -(scope.settings.phone.top / 2) - (circleDimension / 2));
-        scope.layers.phoneLayer.find('.phone-camera').css('left', (phoneWidth / 5) - scope.settings.phone.left);
+        scope.layers.phoneLayer.find('.phone-camera').css('left', (phoneWidth / 4) - scope.settings.phone.left);
         //dynamic
         var lineW = displayW / 4;
         var lineH = scope.settings.phone.top / 7;
@@ -481,17 +481,19 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
         scope.layers.phoneLayer.css('border-right', 'black ' + scope.settings.phone.right + 'px solid');
         scope.layers.phoneLayer.css('border-left', 'black ' + scope.settings.phone.left + 'px solid');
         scope.layers.phoneLayer.css('padding-left', (phoneWidth - (scope.settings.phone.left + scope.settings.phone.right)) + 'px');
-        scope.layers.phoneLayer.css('padding-top', (phoneHeight - (scope.settings.phone.top + scope.settings.phone.bottom)) + '393px');
+        scope.layers.phoneLayer.css('padding-top', (phoneHeight - (scope.settings.phone.top + scope.settings.phone.bottom)) + 'px');
         //display
         setElementSize(scope.layers.phoneLayer.find('.phone-display'), displayW, displayH);
-
-        scope.layers.phoneLayer.on('mousemove', function() {
-            $log.info("phoneLayer");
-        });
-        scope.layers.phoneLayer.find('.phone-display').on('mousemove', function(event) {
-            $log.info("display");
-            event.stopPropagation();
-        });
+        //button
+        var buttonDimension = parseInt(scope.settings.phone.bottom / 1.5);
+        setElementSize(scope.layers.phoneLayer.find('.phone-button'), buttonDimension, buttonDimension);
+        scope.layers.phoneLayer.find('.phone-button').css('bottom', -(scope.settings.phone.bottom / 2) - (buttonDimension / 2));
+        scope.layers.phoneLayer.find('.phone-button').css('left', ((phoneWidth / 2) - (buttonDimension / 2) - scope.settings.phone.left));
+        //sub-button
+        var subButtonDimension = parseInt(buttonDimension / 2);
+        setElementSize(scope.layers.phoneLayer.find('.phone-sub-button'), subButtonDimension, subButtonDimension);
+        scope.layers.phoneLayer.find('.phone-sub-button').css('bottom', parseInt(subButtonDimension) - (subButtonDimension / 2) - 1);
+        scope.layers.phoneLayer.find('.phone-sub-button').css('left', parseInt(subButtonDimension - (subButtonDimension / 2)) - 1);
     }
 
     function initImageMove(scope) {
@@ -509,12 +511,13 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
             scope.layers.phoneLayer.find('.phone-display').on('mousemove', mouseMove);
             scope.layers.phoneLayer.find('.phone-display').on('mouseup', mouseUp);
             //
-            scope.layers.glassLayer.on('mouseleave', mouseUp);
-            // /TODO init with params
+            scope.layers.directiveElement.on('mouseleave', mouseUp);
+            //init params
             scope.layers.imageLayer.css({
                 left: scope.moveProps.x + 'px',
                 top: scope.moveProps.y + 'px'
             });
+            event.stopPropagation();
         }
 
         function mouseMove(event) {
@@ -535,6 +538,7 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
                 });
             }
             fillResult(scope);
+            event.stopPropagation();
         }
 
         function mouseUp() {
@@ -555,7 +559,6 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
         // AV20150928 scope.calculated.PCRW = scope.previewProps.width * scope.calculated.WCPAR;
         scope.calculated.PCRW = scope.previewProps.height * scope.calculated.WCPAR;
         // LandscapeCropRectangleHeight (LCRH)
-        // AV20150928 scope.calculated.LCRH = scope.previewProps.height / scope.calculated.WCLAR;
         scope.calculated.LCRH = scope.previewProps.width / scope.calculated.WCLAR;
         // ShortestPortraitCropRectangleHeight (SPCRH)
         scope.calculated.SPCRH = scope.calculated.PCRW / Devices.portrait.aspectRatio.high;
@@ -620,6 +623,9 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
         '<div class="phone-camera phone-top-additional"/>' +
         '<div class="phone-dynamic phone-top-additional"/>' +
         '<div class="phone-display"/>' +
+        '<div class="phone-button">' +
+        '<div class="phone-sub-button"/>' +
+        '</div>' +
         '</div>' +
         '<div class="glass-wrapper">' +
         '<div class="glass">' +
