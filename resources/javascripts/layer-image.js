@@ -484,30 +484,44 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
         scope.layers.phoneLayer.css('padding-top', (phoneHeight - (scope.settings.phone.top + scope.settings.phone.bottom)) + '393px');
         //display
         setElementSize(scope.layers.phoneLayer.find('.phone-display'), displayW, displayH);
+
+        scope.layers.phoneLayer.on('mousemove', function() {
+            $log.info("phoneLayer");
+        });
+        scope.layers.phoneLayer.find('.phone-display').on('mousemove', function(event) {
+            $log.info("display");
+            event.stopPropagation();
+        });
     }
 
     function initImageMove(scope) {
-        scope.layers.glassLayer.on('mousedown', function (event) {
-            // Prevent default dragging of selected content
+        scope.layers.glassLayer.on('mousedown', mouseDown);
+        scope.layers.phoneLayer.find('.phone-display').on('mousedown', mouseDown);
+
+        function mouseDown(event) {
             event.preventDefault();
             scope.moveProps.startX = event.pageX - scope.moveProps.x;
             scope.moveProps.startY = event.pageY - scope.moveProps.y;
-            scope.layers.glassLayer.on('mousemove', mousemove);
-            scope.layers.glassLayer.on('mouseup', mouseup);
-            scope.layers.glassLayer.on('mouseleave', mouseup);
+            //events
+            scope.layers.glassLayer.on('mousemove', mouseMove);
+            scope.layers.glassLayer.on('mouseup', mouseUp);
+            //
+            scope.layers.phoneLayer.find('.phone-display').on('mousemove', mouseMove);
+            scope.layers.phoneLayer.find('.phone-display').on('mouseup', mouseUp);
+            //
+            scope.layers.glassLayer.on('mouseleave', mouseUp);
             // /TODO init with params
             scope.layers.imageLayer.css({
                 left: scope.moveProps.x + 'px',
                 top: scope.moveProps.y + 'px'
             });
-        });
+        }
 
-        function mousemove(event) {
+        function mouseMove(event) {
             var x = event.pageX - scope.moveProps.startX;
             var y = event.pageY - scope.moveProps.startY;
             var endXImage = x + scope.imageProps.IDW;
             var endYImage = y + scope.imageProps.IDH;
-
             if (x < 0 && endXImage > scope.previewProps.width) {
                 scope.moveProps.x = x;
                 scope.layers.imageLayer.css({
@@ -523,10 +537,11 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
             fillResult(scope);
         }
 
-        function mouseup() {
-            //TODO inside phone - ok
-            scope.layers.glassLayer.off('mousemove', mousemove);
-            scope.layers.glassLayer.off('mouseup', mouseup);
+        function mouseUp() {
+            scope.layers.glassLayer.off('mousemove', mouseMove);
+            scope.layers.phoneLayer.find('.phone-display').off('mousemove', mouseMove);
+            scope.layers.glassLayer.off('mouseup', mouseUp);
+            scope.layers.phoneLayer.find('.phone-display').off('mouseup', mouseUp);
         }
     }
 
