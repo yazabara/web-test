@@ -86,7 +86,6 @@ layer-image .phone-layer {
     position: absolute;
     border: 1px solid white;
     z-index: 46;
-    box-shadow: 0 0 0 1px white;
 }
 
 layer-image .phone-layer .phone-top-additional {

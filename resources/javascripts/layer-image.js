@@ -25,7 +25,7 @@ var imagesApp = angular.module('LayersImageApp', ['ui.bootstrap-slider'], functi
             landscape: {
                 aspectRatio: {
                     low: 1.7777,
-                    high: 1.7777
+                    high: 1.6777
                 },
                 screenSize: {
                     width: {
@@ -100,6 +100,14 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
 
         // movement props
         scope.moveProps = {
+            x: 0,
+            y: 0,
+            startX: 0,
+            startY: 0
+        };
+
+        // movement props
+        scope.phoneMoveProps = {
             x: 0,
             y: 0,
             startX: 0,
@@ -235,14 +243,15 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
             // set glass size
             setElementSize(scope.layers.glassLayer, scope.previewProps.width, scope.previewProps.height);
 
+            //params exists
             if (attrs.centerX && attrs.centerY && attrs.zoomFactor && ( attrs.centerX != '0' && attrs.centerY != '0' && attrs.zoomFactor != '0' )) {
                 initExistDirective(scope, attrs.zoomFactor, attrs.centerX, attrs.centerY);
             }
-            else if (attrs.face) {
+            else if (attrs.face) {//face exist
                 scope.face = JSON.parse(attrs.face);
                 initFaceDetectionDirective(scope, attrs.facePaddingX, attrs.facePaddingY);
             }
-            else {
+            else {//default directive
                 initDefaultDirective(scope);
             }
             initImageMove(scope);
@@ -373,8 +382,8 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
      * Method calculate result center for grayZone in range 0-1
      */
     function calculateGrayCenter(scope) {
-        var leftPoint = scope.calculated.redZoneWidth + scope.calculated.leftGrayBorder;
-        var topPoint = scope.calculated.redZoneHeight + scope.calculated.topGrayBorder;
+        var leftPoint = parseInt(scope.layers.grayLayer.css('left').replace('px', ''));
+        var topPoint = parseInt(scope.layers.grayLayer.css('top').replace('px', ''));
         var centerX = ( leftPoint + scope.calculated.cleanZoneWidth / 2 );
         var centerY = ( topPoint + scope.calculated.cleanZoneHeight / 2 );
 
@@ -478,8 +487,8 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
         //background
         scope.layers.phoneLayer.css('border-top', 'black ' + scope.settings.phone.top + 'px solid');
         scope.layers.phoneLayer.css('border-bottom', 'black ' + scope.settings.phone.bottom + 'px solid');
-        scope.layers.phoneLayer.css('border-right', 'black ' + scope.settings.phone.right + 'px solid');
-        scope.layers.phoneLayer.css('border-left', 'black ' + scope.settings.phone.left + 'px solid');
+        scope.layers.phoneLayer.css('border-right', 'black ' + (scope.settings.phone.right + 2) + 'px solid');
+        scope.layers.phoneLayer.css('border-left', 'black ' + (scope.settings.phone.left + 2) + 'px solid');
         scope.layers.phoneLayer.css('padding-left', (phoneWidth - (scope.settings.phone.left + scope.settings.phone.right)) + 'px');
         scope.layers.phoneLayer.css('padding-top', (phoneHeight - (scope.settings.phone.top + scope.settings.phone.bottom)) + 'px');
         //display
@@ -494,6 +503,66 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
         setElementSize(scope.layers.phoneLayer.find('.phone-sub-button'), subButtonDimension, subButtonDimension);
         scope.layers.phoneLayer.find('.phone-sub-button').css('bottom', parseInt(subButtonDimension) - (subButtonDimension / 2) - 1);
         scope.layers.phoneLayer.find('.phone-sub-button').css('left', parseInt(subButtonDimension - (subButtonDimension / 2)) - 1);
+        initPhoneMove(scope);
+    }
+
+    function initPhoneMove(scope) {
+        scope.layers.phoneLayer.on('mousedown', mouseDown);
+        //init params
+        scope.phoneMoveProps.x = parseInt(scope.layers.phoneLayer.css('left').replace('px', ''));
+        scope.phoneMoveProps.y = parseInt(scope.layers.phoneLayer.css('top').replace('px', ''));
+
+        function mouseDown(event) {
+            event.preventDefault();
+            scope.phoneMoveProps.startX = event.pageX - scope.phoneMoveProps.x;
+            scope.phoneMoveProps.startY = event.pageY - scope.phoneMoveProps.y;
+            //events
+            scope.layers.phoneLayer.on('mousemove', mouseMove);
+            scope.layers.phoneLayer.on('mouseup', mouseUp);
+            scope.layers.directiveElement.on('mouseleave', mouseUp);
+            //init params
+            scope.layers.phoneLayer.css({
+                left: scope.phoneMoveProps.x + 'px',
+                top: scope.phoneMoveProps.y + 'px'
+            });
+            event.stopPropagation();
+        }
+
+        function mouseMove(event) {
+            var x = event.pageX - scope.phoneMoveProps.startX;
+            var y = event.pageY - scope.phoneMoveProps.startY;
+            //gray borders
+            var grayZoneLeft = x + scope.settings.phone.left;
+            var grayZoneRight = grayZoneLeft + parseInt(scope.layers.grayLayer.css('width').replace('px', ''));
+            var grayZoneTop = y + scope.settings.phone.top;
+            var grayZoneBottom = grayZoneTop + parseInt(scope.layers.grayLayer.css('height').replace('px', ''));
+            //checks
+            if (grayZoneLeft > 0 && grayZoneRight < scope.previewProps.width) {
+                scope.phoneMoveProps.x = x;
+                scope.layers.phoneLayer.css({
+                    left: x + 'px'
+                });
+                scope.layers.grayLayer.css({
+                    left: x + scope.settings.phone.left + 'px'
+                });
+            }
+            if (grayZoneTop > 0 && grayZoneBottom < scope.previewProps.height) {
+                scope.phoneMoveProps.y = y;
+                scope.layers.phoneLayer.css({
+                    top: y + 'px'
+                });
+                scope.layers.grayLayer.css({
+                    top: y + scope.settings.phone.top + 'px'
+                });
+            }
+            fillResult(scope);
+            event.stopPropagation();
+        }
+
+        function mouseUp() {
+            scope.layers.phoneLayer.off('mousemove', mouseMove);
+            scope.layers.phoneLayer.off('mouseup', mouseUp);
+        }
     }
 
     function initImageMove(scope) {
@@ -634,7 +703,7 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
         '<img class="cropped-image" ng-src="{{imgSrc}}"/>' +
         '</div>' +
         '</div>' +
-        '<div class="control-wrapper" >' +
+        '<div class="control-wrapper" ng-class="{ \'hidden\' : calculated.MAXZF == 0}">' +
         '<slider ng-class="{ \'hidden\' : calculated.MAXZF == calculated.MINZF}"' + 'ng-model="calculated.zoomFactor"' + 'min="calculated.MINZF"' + 'step="calculated.zoomStep"' + 'precision="4"' + 'max="calculated.MAXZF"' + 'value="calculated.zoomFactor">' +
         '</slider>' +
         '<span ng-class="{ \'hidden\' : calculated.MAXZF != calculated.MINZF}" class="control-message">' + 'Zooming not available: low-res image' +
