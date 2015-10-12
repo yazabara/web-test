@@ -27,6 +27,7 @@ layer-image .glass-wrapper .gray {
     top: 0;
     left: 0;
     z-index: 42;
+    box-shadow: 0 0 0 5000px rgba(255, 5, 23, 0.3);
 }
 
 layer-image .glass-wrapper .white-border:before {
