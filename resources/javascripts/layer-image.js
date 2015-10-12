@@ -341,8 +341,13 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
 
         //in range - no phone move
         if (partX > minCenterX && partX < maxCenterX) {
-            makeImageMovement(scope, partX, partY);
-        } else {
+            scope.moveProps.x = calculateImageMovementX(scope, partX);
+        }
+        //in range - no phone move
+        if (partY > minCenterY && partY < maxCenterY) {
+            scope.moveProps.y = calculateImageMovementY(scope, partY);
+        }
+        {//make phonePosition
             var phonePercent = 0;
             var phoneX = 0;
             //x position
@@ -367,7 +372,7 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
                 scope.phoneMoveProps.y = topPhoneCenter + phoneY;
             }
             if (partY < minCenterY) {
-                scope.moveProps.x = 0;//no need to move image
+                scope.moveProps.y = 0;//no need to move image
                 phonePercent = minCenterY - partY;
                 phoneY = scope.imageProps.IDH * phonePercent;
                 scope.phoneMoveProps.y = topPhoneCenter - phoneY;
@@ -389,24 +394,12 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
         scope.phoneMoveProps.y = topPhoneCenter;
     }
 
-    /**
-     * Calculate scope.moveProps.x scope.moveProps.y connected with partX and partY (in range 0-1)
-     * @param scope
-     * @param partX
-     * @param partY
-     */
-    function makeImageMovement(scope, partX, partY) {
-        //movement place (img - preview) * percent - border
-        scope.moveProps.x = calculateImageMovementX(scope, partX);
-        scope.moveProps.y = calculateImageMovementY(scope, partY);
-    }
-
     function calculateImageMovementX(scope, partX) {
         return -((partX * scope.imageProps.IDW) - (scope.calculated.redZoneWidth + scope.calculated.leftGrayBorder + scope.calculated.cleanZoneWidth / 2));
     }
 
     function calculateImageMovementY(scope, partY) {
-        return -((partY * scope.imageProps.IDW) - (scope.calculated.redZoneHeight + scope.calculated.topGrayBorder + scope.calculated.cleanZoneHeight / 2));
+        return -((partY * scope.imageProps.IDH) - (scope.calculated.redZoneHeight + scope.calculated.topGrayBorder + scope.calculated.cleanZoneHeight / 2));
     }
 
     /**
