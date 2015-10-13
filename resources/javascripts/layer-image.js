@@ -114,6 +114,10 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
             startY: 0
         };
 
+        scope.formatZoomFactor = function(value) {
+           return parseFloat(value.toFixed(3));
+        };
+
         // calculated values
         scope.calculated = {
             // WorstCaseProtraitAspectRatio (WCPAR)
@@ -390,7 +394,7 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
         var topPhoneCenter = scope.previewProps.height / 2 - displayH / 2;
         //default phone position
         scope.phoneMoveProps.x = leftPhoneCenter;
-        scope.phoneMoveProps.y = topPhoneCenter;
+        scope.phoneMoveProps.y = topPhoneCenter - scope.settings.phone.top;
     }
 
     function calculateImageMovementX(scope, partX) {
@@ -461,7 +465,7 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
 
 
         if (scope.phoneMoveProps.y < scope.settings.phone.top) {
-            y = - scope.settings.phone.top;
+            y = -scope.settings.phone.top;
         }
         if (y + displayH > scope.previewProps.height) {
             y = scope.previewProps.height - displayH - scope.settings.phone.bottom;
@@ -824,7 +828,7 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
         '</div>' +
         '</div>' +
         '<div class="control-wrapper" ng-class="{ \'hidden\' : calculated.MAXZF == 0}">' +
-        '<slider ng-class="{ \'hidden\' : calculated.MAXZF == calculated.MINZF}"' + 'ng-model="calculated.zoomFactor"' + 'min="calculated.MINZF"' + 'step="calculated.zoomStep"' + 'precision="4"' + 'max="calculated.MAXZF"' + 'value="calculated.zoomFactor">' +
+        '<slider ng-class="{ \'hidden\' : calculated.MAXZF == calculated.MINZF}"' + 'ng-model="calculated.zoomFactor"' + 'min="calculated.MINZF"' + 'step="calculated.zoomStep"' + 'precision="4"' + 'max="calculated.MAXZF"' + 'value="calculated.zoomFactor" formatter="formatZoomFactor">' +
         '</slider>' +
         '<span ng-class="{ \'hidden\' : calculated.MAXZF != calculated.MINZF}" class="control-message">' + 'Zooming not available: low-res image' +
         '</span>' +
@@ -832,5 +836,4 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
         restrict: 'E',
         link: link
     }
-}])
-;
+}]);
