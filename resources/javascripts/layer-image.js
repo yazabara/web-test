@@ -335,9 +335,8 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
         //0.0 point for phone
         var leftPhoneCenter = scope.previewProps.width / 2 - displayW / 2;
         var topPhoneCenter = scope.previewProps.height / 2 - displayH / 2;
-        //default phone position
-        scope.phoneMoveProps.x = leftPhoneCenter;
-        scope.phoneMoveProps.y = topPhoneCenter;
+
+        setDefaultPhonePosition(scope);
 
         //in range - no phone move
         if (partX > minCenterX && partX < maxCenterX) {
@@ -358,7 +357,7 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
                 scope.phoneMoveProps.x = leftPhoneCenter + phoneX;
             }
             if (partX < minCenterX) {
-                scope.moveProps.x = 0;//no need to move image
+                scope.moveProps.x = 1;//no need to move image
                 phonePercent = minCenterX - partX;
                 phoneX = scope.imageProps.IDW * phonePercent;
                 scope.phoneMoveProps.x = leftPhoneCenter - phoneX;
@@ -372,7 +371,7 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
                 scope.phoneMoveProps.y = topPhoneCenter + phoneY;
             }
             if (partY < minCenterY) {
-                scope.moveProps.y = 0;//no need to move image
+                scope.moveProps.y = 1;//no need to move image
                 phonePercent = minCenterY - partY;
                 phoneY = scope.imageProps.IDH * phonePercent;
                 scope.phoneMoveProps.y = topPhoneCenter - phoneY;
@@ -449,17 +448,23 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
 
     function checkPhone(scope) {
         //left and top checks
-        var x = Math.max(1, scope.phoneMoveProps.x);
-        var y = Math.max(1, scope.phoneMoveProps.y);
+        var x = Math.max(0, scope.phoneMoveProps.x);
+        var y = Math.max(0, scope.phoneMoveProps.y);
         //
         var displayW = parseInt(scope.previewProps.width - 2 * scope.calculated.redZoneWidth);
         var displayH = parseInt(scope.previewProps.height - 2 * scope.calculated.redZoneHeight);
         var phoneWidth = parseInt(displayW + scope.settings.phone.left + scope.settings.phone.right);
+
         if (x + phoneWidth > scope.previewProps.width) {
             x = scope.previewProps.width - phoneWidth + scope.settings.phone.right;
         }
+
+
+        if (scope.phoneMoveProps.y < scope.settings.phone.top) {
+            y = - scope.settings.phone.top;
+        }
         if (y + displayH > scope.previewProps.height) {
-            y = scope.previewProps.height - displayH;
+            y = scope.previewProps.height - displayH - scope.settings.phone.bottom;
         }
         return {
             x: x,
@@ -503,6 +508,7 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
         //diff for phone
         var diffX = ((leftPhoneCenter - scope.phoneMoveProps.x) / scope.imageProps.IDW);
         var diffY = ((topPhoneCenter - scope.phoneMoveProps.y) / scope.imageProps.IDH);
+        $log.info("phone: " + scope.phoneMoveProps.x + ' , ' + scope.phoneMoveProps.y);
         //diff in zoomed image (in range 0-1)
         scope.calculated.centerGrayX = scope.calculated.centerGrayX - diffX;
         scope.calculated.centerGrayY = scope.calculated.centerGrayY - diffY;
@@ -618,12 +624,12 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
         scope.layers.phoneLayer.on('mousedown', mouseDown);
         //init
         scope.layers.phoneLayer.css({
-            left: scope.phoneMoveProps.x - scope.settings.phone.left + 'px',
-            top: scope.phoneMoveProps.y - scope.settings.phone.top + 'px'
-        });
-        scope.layers.grayLayer.css({
             left: scope.phoneMoveProps.x + 'px',
             top: scope.phoneMoveProps.y + 'px'
+        });
+        scope.layers.grayLayer.css({
+            left: scope.phoneMoveProps.x + scope.settings.phone.left + 'px',
+            top: scope.phoneMoveProps.y + scope.settings.phone.top + 'px'
         });
         //check
         __mouseMove(scope.phoneMoveProps.x, scope.phoneMoveProps.y);
