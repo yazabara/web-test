@@ -25,7 +25,7 @@ var imagesApp = angular.module('LayersImageApp', ['ui.bootstrap-slider'], functi
             landscape: {
                 aspectRatio: {
                     low: 1.7777,
-                    high: 1.6777
+                    high: 1.7777
                 },
                 screenSize: {
                     width: {
@@ -114,8 +114,8 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
             startY: 0
         };
 
-        scope.formatZoomFactor = function(value) {
-           return parseFloat(value.toFixed(3));
+        scope.formatZoomFactor = function (value) {
+            return parseFloat(value.toFixed(3));
         };
 
         // calculated values
@@ -266,9 +266,10 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
                     if (newValue > scope.calculated.MAXZF) {
                         newValue = scope.calculated.MAXZF;
                     }
-                    //
                     scope.calculated.zoomFactor = newValue;
+                    var prevCenter = calculateGrayCenter(scope);
                     zoomImage(scope);
+                    calculateExistCenterPointCoordinates(scope, parseFloat(prevCenter.x), parseFloat(prevCenter.y));
                     fillResult(scope);
                 }, true);
                 fillResult(scope);
@@ -306,6 +307,16 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
 
     function initFaceDetectionDirective(scope, fPaddingX, fPaddingY) {
         calculateLayers(scope);
+        var zoom = getFaceZoomFactor(scope, fPaddingX, fPaddingY);
+        checkZoomFactorAndApply(scope, zoom);
+        initImageZoom(scope);
+        calculateExistCenterPointCoordinates(scope, parseFloat(scope.face.faceCenterX), parseFloat(scope.face.faceCenterY));
+        initGrayZone(scope);
+        zoomImage(scope);
+        initPhoneLayer(scope);
+    }
+
+    function getFaceZoomFactor(scope, fPaddingX, fPaddingY) {
         var facePaddingX = fPaddingX ? parseFloat(fPaddingX) : 0.1;
         var facePaddingY = fPaddingY ? parseFloat(fPaddingY) : 0.1;
         // width and height in range [0,1]
@@ -314,14 +325,7 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
         var clearPlace = Math.min(scope.calculated.cleanZoneWidth * scope.imageProps.originalWidth / scope.previewProps.width, scope.calculated.cleanZoneHeight * scope.imageProps.originalHeight / scope.previewProps.height);
         var facePlace = Math.min(AdjustedFaceWidth * scope.imageProps.originalWidth, AdjustedFaceHeight * scope.imageProps.originalHeight);
         // zoom
-        var zoom = clearPlace / facePlace;
-        // $log.info( 'ratio: ' + ratio + ', clearPlace: ' + clearPlace + ' facePlace : ' + facePlace + ' zoom ' + zoom );
-        checkZoomFactorAndApply(scope, zoom);
-        initImageZoom(scope);
-        calculateExistCenterPointCoordinates(scope, parseFloat(scope.face.faceCenterX), parseFloat(scope.face.faceCenterY));
-        initGrayZone(scope);
-        zoomImage(scope);
-        initPhoneLayer(scope);
+        return clearPlace / facePlace;
     }
 
     function calculateExistCenterPointCoordinates(scope, partX, partY) {
@@ -339,9 +343,7 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
         //0.0 point for phone
         var leftPhoneCenter = scope.previewProps.width / 2 - displayW / 2;
         var topPhoneCenter = scope.previewProps.height / 2 - displayH / 2;
-
         setDefaultPhonePosition(scope);
-
         //in range - no phone move
         if (partX > minCenterX && partX < maxCenterX) {
             scope.moveProps.x = calculateImageMovementX(scope, partX);
@@ -398,11 +400,13 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
     }
 
     function calculateImageMovementX(scope, partX) {
-        return -((partX * scope.imageProps.IDW) - (scope.calculated.redZoneWidth + scope.calculated.leftGrayBorder + scope.calculated.cleanZoneWidth / 2));
+        var delta = 0.00;
+        return -(((partX - delta) * scope.imageProps.IDW) - (scope.calculated.redZoneWidth + scope.calculated.leftGrayBorder + scope.calculated.cleanZoneWidth / 2));
     }
 
     function calculateImageMovementY(scope, partY) {
-        return -((partY * scope.imageProps.IDH) - (scope.calculated.redZoneHeight + scope.calculated.topGrayBorder + scope.calculated.cleanZoneHeight / 2));
+        var delta = 0.00;
+        return -(((partY - delta) * scope.imageProps.IDH) - (scope.calculated.redZoneHeight + scope.calculated.topGrayBorder + scope.calculated.cleanZoneHeight / 2));
     }
 
     /**
@@ -458,12 +462,10 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
         var displayW = parseInt(scope.previewProps.width - 2 * scope.calculated.redZoneWidth);
         var displayH = parseInt(scope.previewProps.height - 2 * scope.calculated.redZoneHeight);
         var phoneWidth = parseInt(displayW + scope.settings.phone.left + scope.settings.phone.right);
-
+        //for height - use display, because display always in preview form
         if (x + phoneWidth > scope.previewProps.width) {
             x = scope.previewProps.width - phoneWidth + scope.settings.phone.right;
         }
-
-
         if (scope.phoneMoveProps.y < scope.settings.phone.top) {
             y = -scope.settings.phone.top;
         }
@@ -512,7 +514,6 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
         //diff for phone
         var diffX = ((leftPhoneCenter - scope.phoneMoveProps.x) / scope.imageProps.IDW);
         var diffY = ((topPhoneCenter - scope.phoneMoveProps.y) / scope.imageProps.IDH);
-        $log.info("phone: " + scope.phoneMoveProps.x + ' , ' + scope.phoneMoveProps.y);
         //diff in zoomed image (in range 0-1)
         scope.calculated.centerGrayX = scope.calculated.centerGrayX - diffX;
         scope.calculated.centerGrayY = scope.calculated.centerGrayY - diffY;
@@ -768,38 +769,30 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
         scope.calculated.UILAOT = scope.calculated.UILROT * scope.calculated.LCRH;
         scope.calculated.UILAOR = scope.calculated.UILROR * scope.calculated.NLCRW;
         scope.calculated.UILAOB = scope.calculated.UILROB * scope.calculated.LCRH;
-
-        // $log.info('PCRW: ' + scope.calculated.PCRW + ', LCRH: ' + scope.calculated.LCRH);
-
         // Clear Zone Size
         scope.calculated.cleanZoneWidth = Math.min(( scope.calculated.NLCRW - scope.calculated.UILAOL - scope.calculated.UILAOR ), ( scope.calculated.PCRW - scope.calculated.UIPAOL - scope.calculated.UIPAOR ));
         scope.calculated.cleanZoneHeight = Math.min(( scope.calculated.SPCRH - scope.calculated.UIPAOT - scope.calculated.UIPAOB ), ( scope.calculated.LCRH - scope.calculated.UILAOT - scope.calculated.UILAOB ));
-
         // Gray Zone Borders
         // top
         var tmpTP = ( scope.calculated.SPCRH / 2 - scope.calculated.UIPAOT );
         var tmpTL = ( scope.calculated.LCRH / 2 - scope.calculated.UILAOT );
         var minTmpTLP = Math.min(tmpTL, tmpTP, scope.calculated.LCRH / 2);
         scope.calculated.topGrayBorder = scope.calculated.LCRH / 2 - minTmpTLP;
-
         // bottom
         var tmpBP = ( scope.calculated.SPCRH / 2 - scope.calculated.UIPAOB );
         var tmpBL = ( scope.calculated.LCRH / 2 - scope.calculated.UILAOB );
         var minTmpBLP = Math.min(tmpBL, tmpBP, scope.calculated.LCRH / 2);
         scope.calculated.bottomGrayBorder = scope.calculated.LCRH / 2 - minTmpBLP;
-
         // left
         var tmpLP = ( scope.calculated.NLCRW / 2 - scope.calculated.UILAOL );
         var tmpLL = ( scope.calculated.PCRW / 2 - scope.calculated.UIPAOL );
         var minTmpLLP = Math.min(tmpLL, tmpLP, scope.calculated.PCRW / 2);
         scope.calculated.leftGrayBorder = scope.calculated.PCRW / 2 - minTmpLLP;
-
         // right
         var tmpRP = ( scope.calculated.NLCRW / 2 - scope.calculated.UILAOR );
         var tmpRL = ( scope.calculated.PCRW / 2 - scope.calculated.UIPAOR );
         var minTmpRLP = Math.min(tmpRL, tmpRP, scope.calculated.PCRW / 2);
         scope.calculated.rightGrayBorder = scope.calculated.PCRW / 2 - minTmpRLP;
-
         // Red Zone Size
         scope.calculated.redZoneWidth = ( scope.previewProps.width - scope.calculated.PCRW ) / 2;
         scope.calculated.redZoneHeight = ( scope.previewProps.height - scope.calculated.LCRH ) / 2;
