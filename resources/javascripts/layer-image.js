@@ -25,7 +25,7 @@ var imagesApp = angular.module('LayersImageApp', ['ui.bootstrap-slider'], functi
             landscape: {
                 aspectRatio: {
                     low: 1.7777,
-                    high: 1.6777
+                    high: 1.4777
                 },
                 screenSize: {
                     width: {
@@ -62,7 +62,7 @@ imagesApp.controller('Controller', ['$scope', '$log', 'GLOBAL', function ($scope
     $log.info('controller was initialized');
 
     $scope.resultCallback = function (result) {
-        // $log.info(result.zoomFactor + ' center : ' + result.center.x + ', ' + result.center.y);
+        $log.info(result.zoomFactor + ' center : ' + result.imageCenter.x + ', ' + result.imageCenter.y + ' phone displayCenter' + result.phoneCenter.x + ', ' + result.phoneCenter.y);
     };
 
     $scope.ui = GLOBAL.uiSettings.UI.overlays;
@@ -138,6 +138,18 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
     //phone calculations
     var PhoneUtils = {};
 
+    /**
+     * Method returns center x,y in range [0,1]
+     * @param scope
+     */
+    PhoneUtils.calculateResultCenter = function (scope) {
+        $log.info("center " + scope.phone.display.center.x + " , " + scope.phone.display.center.y);
+        return {
+            x: scope.phone.display.center.x / scope.previewProps.width,
+            y: scope.phone.display.center.y / scope.previewProps.height
+        }
+    };
+
     PhoneUtils.getPhonePosition = function (scope) {
         var displayPosition = PhoneUtils.getDisplayPosition(scope);
         return {
@@ -173,7 +185,7 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
      * Method calculates phone center coordinates and set it
      * @param scope
      */
-    PhoneUtils.initPhoneParams = function (scope) {
+    PhoneUtils.calculatePhoneParams = function (scope) {
         //display dimensions
         scope.phone.display.w = parseInt(scope.previewProps.width - 2 * scope.calculated.redZoneWidth);
         scope.phone.display.h = parseInt(scope.previewProps.height - 2 * scope.calculated.redZoneHeight);
@@ -187,18 +199,38 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
     };
 
     PhoneUtils.calculateDisplayCenter = function (scope) {
-        scope.phone.display.center.x = scope.phoneMoveProps.x + scope.settings.phone.left + scope.phone.w / 2;
-        scope.phone.display.center.y = scope.phoneMoveProps.y + scope.settings.phone.top + scope.phone.h / 2;
+        scope.phone.display.center.x = scope.phoneMoveProps.x + scope.phone.w / 2;
+        scope.phone.display.center.y = scope.phoneMoveProps.y + scope.phone.h / 2;
+        $log.info("y" + scope.phone.display.center.y);
     };
 
     //zoom calculations
     var ZoomUtils = {};
 
     /**
+     * Method returns zoom factor from face dimensions
+     * @param scope
+     * @param fPaddingX
+     * @param fPaddingY
+     * @returns {number}
+     */
+    ZonesUtils.getFaceZoomFactor = function (scope, fPaddingX, fPaddingY) {
+        var facePaddingX = fPaddingX ? parseFloat(fPaddingX) : 0.1;
+        var facePaddingY = fPaddingY ? parseFloat(fPaddingY) : 0.1;
+        // width and height in range [0,1]
+        var AdjustedFaceWidth = Math.max(Math.min(( scope.face.faceWidth ) * ( 1 + ( 2 * facePaddingX ) ), 1), 0);
+        var AdjustedFaceHeight = Math.max(Math.min(( scope.face.faceHeight ) * ( 1 + ( 2 * facePaddingY ) ), 1), 0);
+        var clearPlace = Math.min(scope.calculated.cleanZoneWidth * scope.imageProps.originalWidth / scope.previewProps.width, scope.calculated.cleanZoneHeight * scope.imageProps.originalHeight / scope.previewProps.height);
+        var facePlace = Math.min(AdjustedFaceWidth * scope.imageProps.originalWidth, AdjustedFaceHeight * scope.imageProps.originalHeight);
+        // zoom
+        return clearPlace / facePlace;
+    };
+
+    /**
      * Method calculates minZoom, MaxZoom and zoomStep
      * @param scope
      */
-    ZoomUtils.initZoomParams = function (scope) {
+    ZoomUtils.calculateZoomParams = function (scope) {
         var imageAspectRatio = scope.imageProps.originalWidth / scope.imageProps.originalHeight;
         var previewAspectRatio = scope.previewProps.width / scope.previewProps.height;
         if (imageAspectRatio >= previewAspectRatio) { // image wider than preview
@@ -226,7 +258,7 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
      *
      * @param scope
      */
-    ZoomUtils.initZoomFactor = function (scope) {
+    ZoomUtils.calculateZoomFactor = function (scope) {
         ZoomUtils.checkZoomFactorAndApply(scope, scope.calculated.MINZF);
     };
 
@@ -240,6 +272,18 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
         scope.$apply();// apply zoom factor
     };
 
+    /**
+     * Method zooming image depends on zoomFactor (precalculated) without x,y delta
+     *
+     * @param scope
+     */
+    ZoomUtils.calculateImageDimensions = function (scope) {
+        // ImageDivWidth (IDW)
+        scope.imageProps.IDW = scope.imageProps.originalWidth * scope.calculated.zoomFactor * scope.calculated.PSCALE;
+        // ImageDivHeight (IDH)
+        scope.imageProps.IDH = scope.imageProps.originalHeight * scope.calculated.zoomFactor * scope.calculated.PSCALE;
+    };
+
     var MovementUtils = {};
 
     MovementUtils.movePhone = function (scope) {
@@ -251,6 +295,66 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
         var displayPosition = PhoneUtils.getDisplayPosition(scope);
         scope.layers.grayLayer.css('left', displayPosition.left);
         scope.layers.grayLayer.css('top', displayPosition.top);
+    };
+
+    MovementUtils.moveImage = function (scope) {
+        var position = ImageUtils.getImagePosition(scope);
+        scope.layers.imageLayer.css({
+            left: position.left + 'px',
+            top: position.top + 'px'
+        });
+    };
+
+    //img calculating
+    var ImageUtils = {};
+
+    /**
+     * Method returns center x,y in range [0,1]
+     * @param scope
+     */
+    ImageUtils.calculateResultCenter = function (scope) {
+        return {
+            x: scope.imageProps.center.x / scope.imageProps.IDW,
+            y: -(scope.imageProps.center.y / scope.imageProps.IDH) //direction down
+        }
+    };
+
+    /**
+     * Method inits image props. Set center
+     * @param scope
+     */
+    ImageUtils.calculateImageParams = function (scope) {
+        scope.imageProps.center.x = scope.imageProps.IDW / 2;
+        scope.imageProps.center.y = -scope.imageProps.IDH / 2;//down direction
+        ImageUtils.checkPreviewInImage(scope);
+    };
+
+    ImageUtils.getImagePosition = function (scope) {
+        return {
+            left: scope.imageProps.center.x - scope.previewProps.width / 2,
+            top: scope.imageProps.center.y + scope.previewProps.height / 2//down direction
+        }
+    };
+
+    ImageUtils.checkPreviewInImage = function (scope) {
+        var previewPosition = ImageUtils.getImagePosition(scope);
+        var x = previewPosition.left;
+        var y = previewPosition.top;
+        // check borders
+        var endPreviewX = x + scope.previewProps.width;
+        var endPreviewY = y - scope.previewProps.height;//down direction
+        if (x > 0) {
+            scope.imageProps.center.x = scope.previewProps.width / 2;
+        }
+        if (endPreviewX < scope.imageProps.IDW) {
+            scope.imageProps.center.x = scope.imageProps.IDW - scope.previewProps.width / 2;
+        }
+        if (y > 0) {
+            scope.imageProps.center.y = scope.previewProps.height / 2;
+        }
+        if (endPreviewY > scope.imageProps.IDH) {//down direction
+            scope.imageProps.center.y = scope.imageProps.IDH - scope.previewProps.height / 2;
+        }
     };
 
     var LayerUtils = {};
@@ -316,6 +420,10 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
         initPhoneMove(scope);
     };
 
+    LayerUtils.zoomImage = function (scope) {
+        LayerUtils.setElementSize(scope.layers.imageLayer, scope.imageProps.IDW, scope.imageProps.IDH);
+    };
+
 
     /**
      * Method init gray zone: set size and borders.
@@ -360,7 +468,7 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
         };
 
         // movement props
-        scope.moveProps = {
+        scope.imageMoveProps = {
             x: 0,
             y: 0,
             startX: 0,
@@ -449,7 +557,12 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
             grayLayer: element.find('div.gray')
         };
 
+        //image properties
         scope.imageProps = {
+            center: { //preview center coordinates in image
+                x: 0,
+                y: 0
+            },
             IDW: 0,// ImageDivWidth (IDW) - depends on zoom factor
             IDH: 0,// ImageDivHeight (IDH) - depends on zoom factor
             originalHeight: 0,// Image Height (IH)
@@ -479,12 +592,17 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
                     width: parseInt(attrs.width),
                     height: attrs.width / Math.max(Devices.portrait.aspectRatio.high, Devices.landscape.aspectRatio.high)
                 });
-                ZoomUtils.initZoomParams(scope);
-                ZoomUtils.initZoomFactor(scope);
+                //calculating
+                ZoomUtils.calculateZoomParams(scope);
+                ZoomUtils.calculateZoomFactor(scope);
                 ZonesUtils.calculateZones(scope);
-                PhoneUtils.initPhoneParams(scope);
+                ZoomUtils.calculateImageDimensions(scope);
+                ImageUtils.calculateImageParams(scope);
+                PhoneUtils.calculatePhoneParams(scope);
+                //view
                 LayerUtils.initGrayLayer(scope);
                 LayerUtils.setControlSize(element, scope);
+                LayerUtils.initPhoneLayer(scope);
                 //params exists
                 //if (attrs.centerX && attrs.centerY && attrs.zoomFactor && ( attrs.centerX != '0' && attrs.centerY != '0' && attrs.zoomFactor != '0' )) {
                 //    initExistDirective(scope, attrs.zoomFactor, attrs.centerX, attrs.centerY);
@@ -496,7 +614,7 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
                 //else {//default directive
                 initDefaultDirective(scope);
                 //}
-                initImageMove(scope);
+                //initImageMove(scope);
                 // zoom factor changes listener
                 scope.$watch('calculated.zoomFactor', function (newValue, oldValue) {
                     if (newValue < scope.calculated.MINZF) {
@@ -506,9 +624,7 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
                         newValue = scope.calculated.MAXZF;
                     }
                     scope.calculated.zoomFactor = newValue;
-                    var prevCenter = calculateGrayCenter(scope);
-                    zoomImage(scope);
-                    calculateExistCenterPointCoordinates(scope, parseFloat(prevCenter.x), parseFloat(prevCenter.y));
+                    ZoomUtils.calculateImageDimensions(scope);
                     fillResult(scope);
                 }, true);
                 fillResult(scope);
@@ -522,7 +638,6 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
         initImageZoom(scope);
         //calculate basic params
         calculateZones(scope);
-        setDefaultPhonePosition(scope);
         //get center
         calculateExistCenterPointCoordinates(scope, parseFloat(centerX), parseFloat(centerY));
         //fill gray zone
@@ -533,31 +648,19 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
     }
 
     function initDefaultDirective(scope) {
-        zoomImage(scope);
-        LayerUtils.initPhoneLayer(scope);
+        MovementUtils.moveImage(scope);
+        LayerUtils.zoomImage(scope);
     }
 
     function initFaceDetectionDirective(scope, fPaddingX, fPaddingY) {
         calculateZones(scope);
-        var zoom = getFaceZoomFactor(scope, fPaddingX, fPaddingY);
+        var zoom = ZonesUtils.getFaceZoomFactor(scope, fPaddingX, fPaddingY);
         ZoomUtils.checkZoomFactorAndApply(scope, zoom);
         initImageZoom(scope);
         calculateExistCenterPointCoordinates(scope, parseFloat(scope.face.faceCenterX), parseFloat(scope.face.faceCenterY));
         LayerUtils.initGrayLayer(scope);
         zoomImage(scope);
         LayerUtils.initPhoneLayer(scope);
-    }
-
-    function getFaceZoomFactor(scope, fPaddingX, fPaddingY) {
-        var facePaddingX = fPaddingX ? parseFloat(fPaddingX) : 0.1;
-        var facePaddingY = fPaddingY ? parseFloat(fPaddingY) : 0.1;
-        // width and height in range [0,1]
-        var AdjustedFaceWidth = Math.max(Math.min(( scope.face.faceWidth ) * ( 1 + ( 2 * facePaddingX ) ), 1), 0);
-        var AdjustedFaceHeight = Math.max(Math.min(( scope.face.faceHeight ) * ( 1 + ( 2 * facePaddingY ) ), 1), 0);
-        var clearPlace = Math.min(scope.calculated.cleanZoneWidth * scope.imageProps.originalWidth / scope.previewProps.width, scope.calculated.cleanZoneHeight * scope.imageProps.originalHeight / scope.previewProps.height);
-        var facePlace = Math.min(AdjustedFaceWidth * scope.imageProps.originalWidth, AdjustedFaceHeight * scope.imageProps.originalHeight);
-        // zoom
-        return clearPlace / facePlace;
     }
 
     function calculateExistCenterPointCoordinates(scope, partX, partY) {
@@ -575,27 +678,26 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
         //0.0 point for phone
         var leftPhoneCenter = scope.previewProps.width / 2 - displayW / 2;
         var topPhoneCenter = scope.previewProps.height / 2 - displayH / 2;
-        setDefaultPhonePosition(scope);
         //in range - no phone move
         if (partX > minCenterX && partX < maxCenterX) {
-            scope.moveProps.x = calculateImageMovementX(scope, partX);
+            scope.imageMoveProps.x = calculateImageMovementX(scope, partX);
         }
         //in range - no phone move
         if (partY > minCenterY && partY < maxCenterY) {
-            scope.moveProps.y = calculateImageMovementY(scope, partY);
+            scope.imageMoveProps.y = calculateImageMovementY(scope, partY);
         }
         //{//make phonePosition
         //    var phonePercent = 0;
         //    var phoneX = 0;
         //    //x position
         //    if (partX > maxCenterX) {
-        //        scope.moveProps.x = calculateImageMovementX(scope, maxCenterX);
+        //        scope.imageMoveProps.x = calculateImageMovementX(scope, maxCenterX);
         //        phonePercent = partX - maxCenterX;
         //        phoneX = scope.imageProps.IDW * phonePercent;
         //        scope.phoneMoveProps.x = leftPhoneCenter + phoneX;
         //    }
         //    if (partX < minCenterX) {
-        //        scope.moveProps.x = 1;//no need to move image
+        //        scope.imageMoveProps.x = 1;//no need to move image
         //        phonePercent = minCenterX - partX;
         //        phoneX = scope.imageProps.IDW * phonePercent;
         //        scope.phoneMoveProps.x = leftPhoneCenter - phoneX;
@@ -603,13 +705,13 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
         //    //y position
         //    var phoneY = 0;
         //    if (partY > maxCenterY) {
-        //        scope.moveProps.y = calculateImageMovementY(scope, maxCenterY);
+        //        scope.imageMoveProps.y = calculateImageMovementY(scope, maxCenterY);
         //        phonePercent = partY - maxCenterY;
         //        phoneY = scope.imageProps.IDH * phonePercent;
         //        scope.phoneMoveProps.y = topPhoneCenter + phoneY;
         //    }
         //    if (partY < minCenterY) {
-        //        scope.moveProps.y = 1;//no need to move image
+        //        scope.imageMoveProps.y = 1;//no need to move image
         //        phonePercent = minCenterY - partY;
         //        phoneY = scope.imageProps.IDH * phonePercent;
         //        scope.phoneMoveProps.y = topPhoneCenter - phoneY;
@@ -618,17 +720,6 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
         var checks = checkPhone(scope);
         scope.phoneMoveProps.x = checks.x;
         scope.phoneMoveProps.y = checks.y;
-    }
-
-    function setDefaultPhonePosition(scope) {
-        var displayW = parseInt(scope.previewProps.width - 2 * scope.calculated.redZoneWidth);
-        var displayH = parseInt(scope.previewProps.height - 2 * scope.calculated.redZoneHeight);
-        //0.0 point for phone
-        var leftPhoneCenter = scope.previewProps.width / 2 - displayW / 2;
-        var topPhoneCenter = scope.previewProps.height / 2 - displayH / 2;
-        //default phone position
-        scope.phoneMoveProps.x = leftPhoneCenter;
-        scope.phoneMoveProps.y = topPhoneCenter - scope.settings.phone.top;
     }
 
     /**
@@ -653,10 +744,10 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
      * @param scope
      */
     function zoomImage(scope) {
-        var checkResult = checkImage(scope);
-        // move image
-        moveImage(scope, checkResult.x, checkResult.y);
-        initImageZoom(scope);
+        var position = ImageUtils.getImagePosition(scope);
+        moveImage(scope, position.x, position.y);
+        ZoomUtils.calculateImageDimensions(scope);
+        LayerUtils.zoomImage(scope);
     }
 
     function checkImage(scope) {
@@ -665,8 +756,8 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
         var widthDiff = scope.imageProps.IDW - newWidth;
         var heightDiff = scope.imageProps.IDH - newHeight;
 
-        var x = scope.moveProps.x + ( widthDiff / 2 );
-        var y = scope.moveProps.y + ( heightDiff / 2 );
+        var x = scope.imageMoveProps.x + ( widthDiff / 2 );
+        var y = scope.imageMoveProps.y + ( heightDiff / 2 );
 
         // check borders
         var endXImage = x + newWidth;
@@ -693,91 +784,15 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
         };
     }
 
-    function checkPhone(scope) {
-        //left and top checks
-        var x = Math.max(0, scope.phoneMoveProps.x);
-        var y = Math.max(0, scope.phoneMoveProps.y);
-        //
-        var displayW = parseInt(scope.previewProps.width - 2 * scope.calculated.redZoneWidth);
-        var displayH = parseInt(scope.previewProps.height - 2 * scope.calculated.redZoneHeight);
-        var phoneWidth = parseInt(displayW + scope.settings.phone.left + scope.settings.phone.right);
-        //for height - use display, because display always in preview form
-        if (x + phoneWidth > scope.previewProps.width) {
-            x = scope.previewProps.width - phoneWidth + scope.settings.phone.right;
-        }
-        if (scope.phoneMoveProps.y < scope.settings.phone.top) {
-            y = -scope.settings.phone.top;
-        }
-        if (y + displayH > scope.previewProps.height) {
-            y = scope.previewProps.height - displayH - scope.settings.phone.bottom;
-        }
-        return {
-            x: x,
-            y: y
-        };
-    }
-
     function fillResult(scope) {
         var result = {
             zoomFactor: scope.calculated.zoomFactor,
-            center: calculateGrayCenter(scope)
+            phoneCenter: PhoneUtils.calculateResultCenter(scope),
+            imageCenter: ImageUtils.calculateResultCenter(scope)
         };
         scope.callBackMethod({
             imageLayerResult: result
         });
-    }
-
-    /**
-     * Method calculate result center for grayZone in range 0-1
-     */
-    function calculateGrayCenter(scope) {
-        var displayW = parseInt(scope.previewProps.width - 2 * scope.calculated.redZoneWidth);
-        var displayH = parseInt(scope.previewProps.height - 2 * scope.calculated.redZoneHeight);
-        //center
-        var leftPoint = scope.calculated.redZoneWidth + scope.calculated.leftGrayBorder;
-        var topPoint = scope.calculated.redZoneHeight + scope.calculated.topGrayBorder;
-        var centerX = ( leftPoint + scope.calculated.cleanZoneWidth / 2 ) + scope.calculated.leftGrayBorder;
-        var centerY = ( topPoint + scope.calculated.cleanZoneHeight / 2 ) + scope.calculated.topGrayBorder;
-        //center with image position
-        scope.calculated.centerGrayX = ( ( centerX - scope.moveProps.x) / scope.imageProps.IDW );
-        scope.calculated.centerGrayY = ( ( centerY - scope.moveProps.y ) / scope.imageProps.IDH );
-        //center with phone position
-        //0.0 point for phone
-        var leftPhoneCenter = (scope.previewProps.width / 2) - (displayW / 2);
-        var topPhoneCenter = (scope.previewProps.height / 2) - (displayH / 2);
-        //diff for phone
-        var diffX = ((leftPhoneCenter - scope.phoneMoveProps.x) / scope.imageProps.IDW);
-        var diffY = ((topPhoneCenter - scope.phoneMoveProps.y) / scope.imageProps.IDH);
-        //diff in zoomed image (in range 0-1)
-        scope.calculated.centerGrayX = scope.calculated.centerGrayX - diffX;
-        scope.calculated.centerGrayY = scope.calculated.centerGrayY - diffY;
-        return {
-            x: scope.calculated.centerGrayX,
-            y: scope.calculated.centerGrayY
-        }
-    }
-
-    function moveImage(scope, newX, newY) {
-        scope.moveProps.x = newX;
-        scope.moveProps.y = newY;
-        scope.layers.imageLayer.css({
-            left: scope.moveProps.x + 'px',
-            top: scope.moveProps.y + 'px'
-        });
-    }
-
-    /**
-     * Method zooming image depends on zoomFactor (precalculated) without x,y delta
-     *
-     * @param scope
-     */
-    function initImageZoom(scope) {
-        // ImageDivWidth (IDW)
-        scope.imageProps.IDW = scope.imageProps.originalWidth * scope.calculated.zoomFactor * scope.calculated.PSCALE;
-        // ImageDivHeight (IDH)
-        scope.imageProps.IDH = scope.imageProps.originalHeight * scope.calculated.zoomFactor * scope.calculated.PSCALE;
-        scope.layers.imageLayer.css('width', scope.imageProps.IDW);
-        scope.layers.imageLayer.css('height', scope.imageProps.IDH);
     }
 
     function initPhoneMove(scope) {
@@ -847,8 +862,8 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
 
         function mouseDown(event) {
             event.preventDefault();
-            scope.moveProps.startX = event.pageX - scope.moveProps.x;
-            scope.moveProps.startY = event.pageY - scope.moveProps.y;
+            scope.imageMoveProps.startX = event.pageX - scope.imageMoveProps.x;
+            scope.imageMoveProps.startY = event.pageY - scope.imageMoveProps.y;
             //events
             scope.layers.glassLayer.on('mousemove', mouseMove);
             scope.layers.glassLayer.on('mouseup', mouseUp);
@@ -859,25 +874,25 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
             scope.layers.directiveElement.on('mouseleave', mouseUp);
             //init params
             scope.layers.imageLayer.css({
-                left: scope.moveProps.x + 'px',
-                top: scope.moveProps.y + 'px'
+                left: scope.imageMoveProps.x + 'px',
+                top: scope.imageMoveProps.y + 'px'
             });
             event.stopPropagation();
         }
 
         function mouseMove(event) {
-            var x = event.pageX - scope.moveProps.startX;
-            var y = event.pageY - scope.moveProps.startY;
+            var x = event.pageX - scope.imageMoveProps.startX;
+            var y = event.pageY - scope.imageMoveProps.startY;
             var endXImage = x + scope.imageProps.IDW;
             var endYImage = y + scope.imageProps.IDH;
             if (x < 0 && endXImage > scope.previewProps.width) {
-                scope.moveProps.x = x;
+                scope.imageMoveProps.x = x;
                 scope.layers.imageLayer.css({
                     left: x + 'px'
                 });
             }
             if (y < 0 && endYImage > scope.previewProps.height) {
-                scope.moveProps.y = y;
+                scope.imageMoveProps.y = y;
                 scope.layers.imageLayer.css({
                     top: y + 'px'
                 });
@@ -925,4 +940,5 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
         restrict: 'E',
         link: link
     }
-}]);
+}])
+;
