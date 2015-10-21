@@ -181,9 +181,14 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
         scope.phone.display.center.x = scope.previewProps.width / 2;
         scope.phone.display.center.y = scope.previewProps.height / 2;
         //phone size
-        scope.phone.dimensions.w = parseInt(scope.phone.display.w + scope.settings.phone.left + scope.settings.phone.right);
-        scope.phone.dimensions.h = parseInt(scope.phone.display.h + scope.settings.phone.top + scope.settings.phone.bottom);
+        scope.phone.w = parseInt(scope.phone.display.w + scope.settings.phone.left + scope.settings.phone.right);
+        scope.phone.h = parseInt(scope.phone.display.h + scope.settings.phone.top + scope.settings.phone.bottom);
         PhoneUtils.checkDisplayInPreview(scope);
+    };
+
+    PhoneUtils.calculateDisplayCenter = function (scope) {
+        scope.phone.display.center.x = scope.phoneMoveProps.x + scope.settings.phone.left + scope.phone.w / 2;
+        scope.phone.display.center.y = scope.phoneMoveProps.y + scope.settings.phone.top + scope.phone.h / 2;
     };
 
     //zoom calculations
@@ -275,40 +280,40 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
      */
     LayerUtils.initPhoneLayer = function (scope) {
         //phone
-        LayerUtils.setElementSize(scope.layers.phoneLayer, scope.phone.dimensions.w, scope.phone.dimensions.h);
+        LayerUtils.setElementSize(scope.layers.phoneLayer, scope.phone.w, scope.phone.h);
         MovementUtils.movePhone(scope);
         scope.layers.phoneLayer.css('border-radius', (scope.settings.phone.top + scope.settings.phone.bottom + scope.settings.phone.left + scope.settings.phone.right) / 4);
         //camera
         var circleDimension = parseInt(scope.settings.phone.top / 3);
         LayerUtils.setElementSize(scope.layers.phoneLayer.find('.phone-camera'), circleDimension, circleDimension);
         scope.layers.phoneLayer.find('.phone-camera').css('top', -(scope.settings.phone.top / 2) - (circleDimension / 2));
-        scope.layers.phoneLayer.find('.phone-camera').css('left', (scope.phone.dimensions.w / 4) - scope.settings.phone.left);
+        scope.layers.phoneLayer.find('.phone-camera').css('left', (scope.phone.w / 4) - scope.settings.phone.left);
         //dynamic
-        var lineW = scope.phone.dimensions.w / 4;
+        var lineW = scope.phone.w / 4;
         var lineH = scope.settings.phone.top / 7;
         LayerUtils.setElementSize(scope.layers.phoneLayer.find('.phone-dynamic'), lineW, lineH);
         scope.layers.phoneLayer.find('.phone-dynamic').css('top', -(scope.settings.phone.top / 2) - (lineH / 2));
-        scope.layers.phoneLayer.find('.phone-dynamic').css('left', (scope.phone.dimensions.w / 2) - (lineW / 2) - scope.settings.phone.left);
+        scope.layers.phoneLayer.find('.phone-dynamic').css('left', (scope.phone.w / 2) - (lineW / 2) - scope.settings.phone.left);
         //background
         scope.layers.phoneLayer.css('border-top', 'black ' + scope.settings.phone.top + 'px solid');
         scope.layers.phoneLayer.css('border-bottom', 'black ' + scope.settings.phone.bottom + 'px solid');
         scope.layers.phoneLayer.css('border-right', 'black ' + (scope.settings.phone.right + 2) + 'px solid');
         scope.layers.phoneLayer.css('border-left', 'black ' + (scope.settings.phone.left + 2) + 'px solid');
-        scope.layers.phoneLayer.css('padding-left', (scope.phone.dimensions.w - (scope.settings.phone.left + scope.settings.phone.right)) + 'px');
-        scope.layers.phoneLayer.css('padding-top', (scope.phone.dimensions.h - (scope.settings.phone.top + scope.settings.phone.bottom)) + 'px');
+        scope.layers.phoneLayer.css('padding-left', (scope.phone.w - (scope.settings.phone.left + scope.settings.phone.right)) + 'px');
+        scope.layers.phoneLayer.css('padding-top', (scope.phone.h - (scope.settings.phone.top + scope.settings.phone.bottom)) + 'px');
         //display
         LayerUtils.setElementSize(scope.layers.phoneLayer.find('.phone-display'), scope.phone.display.w, scope.phone.display.h);
         //button
         var buttonDimension = parseInt(scope.settings.phone.bottom / 1.5);
         LayerUtils.setElementSize(scope.layers.phoneLayer.find('.phone-button'), buttonDimension, buttonDimension);
         scope.layers.phoneLayer.find('.phone-button').css('bottom', -(scope.settings.phone.bottom / 2) - (buttonDimension / 2));
-        scope.layers.phoneLayer.find('.phone-button').css('left', ((scope.phone.dimensions.w / 2) - (buttonDimension / 2) - scope.settings.phone.left));
+        scope.layers.phoneLayer.find('.phone-button').css('left', ((scope.phone.w / 2) - (buttonDimension / 2) - scope.settings.phone.left));
         //sub-button
         var subButtonDimension = parseInt(buttonDimension / 2);
         LayerUtils.setElementSize(scope.layers.phoneLayer.find('.phone-sub-button'), subButtonDimension, subButtonDimension);
         scope.layers.phoneLayer.find('.phone-sub-button').css('bottom', parseInt(subButtonDimension) - (subButtonDimension / 2) - 1);
         scope.layers.phoneLayer.find('.phone-sub-button').css('left', parseInt(subButtonDimension - (subButtonDimension / 2)) - 1);
-        //initPhoneMove(scope);
+        initPhoneMove(scope);
     };
 
 
@@ -349,10 +354,9 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
                     y: 0
                 }
             },
-            dimensions: {//phone dimensions (width and height)
-                w: 0,
-                h: 0
-            }
+            //phone dimensions (width and height)
+            w: 0,
+            h: 0
         };
 
         // movement props
@@ -778,13 +782,15 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
 
     function initPhoneMove(scope) {
         scope.layers.phoneLayer.on('mousedown', mouseDown);
-        //check
-        //__mouseMove(scope.phoneMoveProps.x, scope.phoneMoveProps.y);
+
+        var phonePosition = PhoneUtils.getPhonePosition(scope);
+        scope.phoneMoveProps.x = phonePosition.left;
+        scope.phoneMoveProps.y = phonePosition.top;
 
         function mouseDown(event) {
             event.preventDefault();
-            scope.phoneMoveProps.startX = event.pageX - scope.phone.display.center.x + scope.phone.display.w / 2;
-            scope.phoneMoveProps.startY = event.pageY - scope.phone.display.center.y + scope.phone.display.h / 2;
+            scope.phoneMoveProps.startX = event.pageX - scope.phoneMoveProps.x;
+            scope.phoneMoveProps.startY = event.pageY - scope.phoneMoveProps.y;
             $log.info(scope.phoneMoveProps.startX, scope.phoneMoveProps.startY);
             //events
             scope.layers.phoneLayer.on('mousemove', mouseMove);
@@ -825,6 +831,7 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
                     top: y + scope.settings.phone.top + 'px'
                 });
             }
+            PhoneUtils.calculateDisplayCenter(scope);
             fillResult(scope);
         }
 
