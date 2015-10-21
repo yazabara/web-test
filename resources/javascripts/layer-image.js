@@ -25,7 +25,7 @@ var imagesApp = angular.module('LayersImageApp', ['ui.bootstrap-slider'], functi
             landscape: {
                 aspectRatio: {
                     low: 1.7777,
-                    high: 1.7777
+                    high: 1.6777
                 },
                 screenSize: {
                     width: {
@@ -62,7 +62,7 @@ imagesApp.controller('Controller', ['$scope', '$log', 'GLOBAL', function ($scope
     $log.info('controller was initialized');
 
     $scope.resultCallback = function (result) {
-        $log.info(result.zoomFactor + ' center : ' + result.center.x + ', ' + result.center.y);
+        // $log.info(result.zoomFactor + ' center : ' + result.center.x + ', ' + result.center.y);
     };
 
     $scope.ui = GLOBAL.uiSettings.UI.overlays;
@@ -78,6 +78,254 @@ imagesApp.controller('Controller', ['$scope', '$log', 'GLOBAL', function ($scope
 
 imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
 
+    //Calculation with zones
+    var ZonesUtils = {};
+
+    ZonesUtils.calculateZones = function (scope) {
+        var Devices = GLOBAL.uiSettings.devices;
+        // WorstCaseProtraitAspectRatio (WCPAR)
+        scope.calculated.WCPAR = Math.min(Devices.portrait.aspectRatio.low, Devices.portrait.aspectRatio.high);
+        // WorstCaseLandscapeAspectRatio (WCLAR)
+        scope.calculated.WCLAR = Math.max(Devices.landscape.aspectRatio.low, Devices.landscape.aspectRatio.high);
+        // PortraitCropRectangleWidth (PCRW)
+        // AV20150928 scope.calculated.PCRW = scope.previewProps.width * scope.calculated.WCPAR;
+        scope.calculated.PCRW = scope.previewProps.height * scope.calculated.WCPAR;
+        // LandscapeCropRectangleHeight (LCRH)
+        scope.calculated.LCRH = scope.previewProps.width / scope.calculated.WCLAR;
+        // ShortestPortraitCropRectangleHeight (SPCRH)
+        scope.calculated.SPCRH = scope.calculated.PCRW / Devices.portrait.aspectRatio.high;
+        // NarrowestLandscapeCropRectangleWidth (NLCRW)
+        scope.calculated.NLCRW = scope.previewProps.width * Devices.landscape.aspectRatio.low;
+        // UI Portrait Overlay Actual Px Offsets
+        scope.calculated.UIPAOL = scope.calculated.UIPROL * scope.calculated.PCRW;
+        scope.calculated.UIPAOT = scope.calculated.UIPROT * scope.calculated.SPCRH;
+        scope.calculated.UIPAOR = scope.calculated.UIPROR * scope.calculated.PCRW;
+        scope.calculated.UIPAOB = scope.calculated.UIPROB * scope.calculated.SPCRH;
+        // UI Landscape Overlay Actual Px Offsets
+        scope.calculated.UILAOL = scope.calculated.UILROL * scope.calculated.NLCRW;
+        scope.calculated.UILAOT = scope.calculated.UILROT * scope.calculated.LCRH;
+        scope.calculated.UILAOR = scope.calculated.UILROR * scope.calculated.NLCRW;
+        scope.calculated.UILAOB = scope.calculated.UILROB * scope.calculated.LCRH;
+        // Clear Zone Size
+        scope.calculated.cleanZoneWidth = Math.min(( scope.calculated.NLCRW - scope.calculated.UILAOL - scope.calculated.UILAOR ), ( scope.calculated.PCRW - scope.calculated.UIPAOL - scope.calculated.UIPAOR ));
+        scope.calculated.cleanZoneHeight = Math.min(( scope.calculated.SPCRH - scope.calculated.UIPAOT - scope.calculated.UIPAOB ), ( scope.calculated.LCRH - scope.calculated.UILAOT - scope.calculated.UILAOB ));
+        // Gray Zone Borders
+        // top
+        var tmpTP = ( scope.calculated.SPCRH / 2 - scope.calculated.UIPAOT );
+        var tmpTL = ( scope.calculated.LCRH / 2 - scope.calculated.UILAOT );
+        var minTmpTLP = Math.min(tmpTL, tmpTP, scope.calculated.LCRH / 2);
+        scope.calculated.topGrayBorder = scope.calculated.LCRH / 2 - minTmpTLP;
+        // bottom
+        var tmpBP = ( scope.calculated.SPCRH / 2 - scope.calculated.UIPAOB );
+        var tmpBL = ( scope.calculated.LCRH / 2 - scope.calculated.UILAOB );
+        var minTmpBLP = Math.min(tmpBL, tmpBP, scope.calculated.LCRH / 2);
+        scope.calculated.bottomGrayBorder = scope.calculated.LCRH / 2 - minTmpBLP;
+        // left
+        var tmpLP = ( scope.calculated.NLCRW / 2 - scope.calculated.UILAOL );
+        var tmpLL = ( scope.calculated.PCRW / 2 - scope.calculated.UIPAOL );
+        var minTmpLLP = Math.min(tmpLL, tmpLP, scope.calculated.PCRW / 2);
+        scope.calculated.leftGrayBorder = scope.calculated.PCRW / 2 - minTmpLLP;
+        // right
+        var tmpRP = ( scope.calculated.NLCRW / 2 - scope.calculated.UILAOR );
+        var tmpRL = ( scope.calculated.PCRW / 2 - scope.calculated.UIPAOR );
+        var minTmpRLP = Math.min(tmpRL, tmpRP, scope.calculated.PCRW / 2);
+        scope.calculated.rightGrayBorder = scope.calculated.PCRW / 2 - minTmpRLP;
+        // Red Zone Size
+        scope.calculated.redZoneWidth = ( scope.previewProps.width - scope.calculated.PCRW ) / 2;
+        scope.calculated.redZoneHeight = ( scope.previewProps.height - scope.calculated.LCRH ) / 2;
+    };
+
+    //phone calculations
+    var PhoneUtils = {};
+
+    PhoneUtils.getPhonePosition = function (scope) {
+        var displayPosition = PhoneUtils.getDisplayPosition(scope);
+        return {
+            left: displayPosition.left - scope.settings.phone.left,
+            top: displayPosition.top - scope.settings.phone.top
+        }
+    };
+
+    PhoneUtils.getDisplayPosition = function (scope) {
+        return {
+            left: scope.phone.display.center.x - (scope.phone.display.w / 2 ),
+            top: scope.phone.display.center.y - (scope.phone.display.h / 2 )
+        }
+    };
+
+    PhoneUtils.checkDisplayInPreview = function (scope) {
+        var displayPosition = PhoneUtils.getDisplayPosition(scope);
+        if (displayPosition.left < 0) { //
+            scope.phone.display.center.x = scope.phone.display.w / 2;
+        }
+        if (displayPosition.top < 0) { //
+            scope.phone.display.center.y = scope.phone.display.h / 2;
+        }
+        if (displayPosition.left + scope.phone.display.w > scope.previewProps.width) { //
+            scope.phone.display.center.x = scope.previewProps.width - scope.phone.display.w / 2;
+        }
+        if (displayPosition.top + scope.phone.display.h > scope.previewProps.height) { //
+            scope.phone.display.center.y = scope.previewProps.height - scope.phone.display.h / 2;
+        }
+    };
+
+    /**
+     * Method calculates phone center coordinates and set it
+     * @param scope
+     */
+    PhoneUtils.initPhoneParams = function (scope) {
+        //display dimensions
+        scope.phone.display.w = parseInt(scope.previewProps.width - 2 * scope.calculated.redZoneWidth);
+        scope.phone.display.h = parseInt(scope.previewProps.height - 2 * scope.calculated.redZoneHeight);
+        //center by default - center preview
+        scope.phone.display.center.x = scope.previewProps.width / 2;
+        scope.phone.display.center.y = scope.previewProps.height / 2;
+        //phone size
+        scope.phone.dimensions.w = parseInt(scope.phone.display.w + scope.settings.phone.left + scope.settings.phone.right);
+        scope.phone.dimensions.h = parseInt(scope.phone.display.h + scope.settings.phone.top + scope.settings.phone.bottom);
+        PhoneUtils.checkDisplayInPreview(scope);
+    };
+
+    //zoom calculations
+    var ZoomUtils = {};
+
+    /**
+     * Method calculates minZoom, MaxZoom and zoomStep
+     * @param scope
+     */
+    ZoomUtils.initZoomParams = function (scope) {
+        var imageAspectRatio = scope.imageProps.originalWidth / scope.imageProps.originalHeight;
+        var previewAspectRatio = scope.previewProps.width / scope.previewProps.height;
+        if (imageAspectRatio >= previewAspectRatio) { // image wider than preview
+            scope.calculated.PSCALE = scope.previewProps.height / scope.imageProps.originalHeight;
+            scope.calculated.MAXZF = scope.imageProps.originalWidth * scope.calculated.PSCALE / scope.previewProps.width;
+        }
+        else { // image narrower than preview
+            scope.calculated.PSCALE = scope.previewProps.width / scope.imageProps.originalWidth;
+            scope.calculated.MAXZF = scope.imageProps.originalHeight * scope.calculated.PSCALE / scope.previewProps.height;
+        }
+        scope.calculated.MAXZF *= 1.5; // the number 1.5 represents the maximum pixelation that we allow.  In other words, we are allowing one pixel of the image to be stretched across up to 1.5 pixels on the screen.
+        if (Math.abs(scope.calculated.MAXZF - scope.calculated.MINZF) <= 0.05) { // in case of low-resolution image
+            scope.calculated.zoomStep = 0;
+            scope.calculated.MAXZF = scope.calculated.MINZF;
+        }
+        else {
+            var zoomStepsCount = Math.round(scope.previewProps.width / 5); // one step per 5px on the screen
+            scope.calculated.zoomStep = Math.floor(10000 * ( scope.calculated.MAXZF - scope.calculated.MINZF ) / zoomStepsCount) / 10000;
+            scope.calculated.MAXZF = Math.round(10000 * ( scope.calculated.MINZF + scope.calculated.zoomStep * zoomStepsCount )) / 10000;
+        }
+    };
+
+    /**
+     * Method calculate zoomFactor connected with settings and image original size
+     *
+     * @param scope
+     */
+    ZoomUtils.initZoomFactor = function (scope) {
+        ZoomUtils.checkZoomFactorAndApply(scope, scope.calculated.MINZF);
+    };
+
+    /**
+     * Method check zoomFactor in range minZoom - maxZoom
+     * @param scope
+     * @param zoomFactor
+     */
+    ZoomUtils.checkZoomFactorAndApply = function (scope, zoomFactor) {
+        scope.calculated.zoomFactor = ( zoomFactor >= scope.calculated.MINZF && zoomFactor <= scope.calculated.MAXZF ) ? zoomFactor : ( zoomFactor < scope.calculated.MINZF ? scope.calculated.MINZF : scope.calculated.MAXZF );
+        scope.$apply();// apply zoom factor
+    };
+
+    var MovementUtils = {};
+
+    MovementUtils.movePhone = function (scope) {
+        var phonePosition = PhoneUtils.getPhonePosition(scope);
+        //move phone
+        scope.layers.phoneLayer.css('left', phonePosition.left);
+        scope.layers.phoneLayer.css('top', phonePosition.top);
+        //move gray zone
+        var displayPosition = PhoneUtils.getDisplayPosition(scope);
+        scope.layers.grayLayer.css('left', displayPosition.left);
+        scope.layers.grayLayer.css('top', displayPosition.top);
+    };
+
+    var LayerUtils = {};
+
+    LayerUtils.setElementSize = function (element, width, height) {
+        element.css('width', width);
+        element.css('height', height);
+    };
+
+    LayerUtils.setElementBorders = function (element, left, right, top, bottom, rgba) {
+        element.css('border-left', left + "px solid " + rgba);
+        element.css('border-right', right + "px solid " + rgba);
+        element.css('border-top', top + "px solid " + rgba);
+        element.css('border-bottom', bottom + "px solid " + rgba);
+    };
+
+    LayerUtils.setControlSize = function (controlElement, scope) {
+        // set preview size (with controls)
+        LayerUtils.setElementSize(controlElement, scope.previewProps.width, scope.previewProps.height + scope.settings.controlHeight);
+        // set glass size
+        LayerUtils.setElementSize(scope.layers.glassLayer, scope.previewProps.width, scope.previewProps.height);
+    };
+
+    /**
+     * Make phone box layer - connected with gray zone dimensions
+     * @param scope
+     */
+    LayerUtils.initPhoneLayer = function (scope) {
+        //phone
+        LayerUtils.setElementSize(scope.layers.phoneLayer, scope.phone.dimensions.w, scope.phone.dimensions.h);
+        MovementUtils.movePhone(scope);
+        scope.layers.phoneLayer.css('border-radius', (scope.settings.phone.top + scope.settings.phone.bottom + scope.settings.phone.left + scope.settings.phone.right) / 4);
+        //camera
+        var circleDimension = parseInt(scope.settings.phone.top / 3);
+        LayerUtils.setElementSize(scope.layers.phoneLayer.find('.phone-camera'), circleDimension, circleDimension);
+        scope.layers.phoneLayer.find('.phone-camera').css('top', -(scope.settings.phone.top / 2) - (circleDimension / 2));
+        scope.layers.phoneLayer.find('.phone-camera').css('left', (scope.phone.dimensions.w / 4) - scope.settings.phone.left);
+        //dynamic
+        var lineW = scope.phone.dimensions.w / 4;
+        var lineH = scope.settings.phone.top / 7;
+        LayerUtils.setElementSize(scope.layers.phoneLayer.find('.phone-dynamic'), lineW, lineH);
+        scope.layers.phoneLayer.find('.phone-dynamic').css('top', -(scope.settings.phone.top / 2) - (lineH / 2));
+        scope.layers.phoneLayer.find('.phone-dynamic').css('left', (scope.phone.dimensions.w / 2) - (lineW / 2) - scope.settings.phone.left);
+        //background
+        scope.layers.phoneLayer.css('border-top', 'black ' + scope.settings.phone.top + 'px solid');
+        scope.layers.phoneLayer.css('border-bottom', 'black ' + scope.settings.phone.bottom + 'px solid');
+        scope.layers.phoneLayer.css('border-right', 'black ' + (scope.settings.phone.right + 2) + 'px solid');
+        scope.layers.phoneLayer.css('border-left', 'black ' + (scope.settings.phone.left + 2) + 'px solid');
+        scope.layers.phoneLayer.css('padding-left', (scope.phone.dimensions.w - (scope.settings.phone.left + scope.settings.phone.right)) + 'px');
+        scope.layers.phoneLayer.css('padding-top', (scope.phone.dimensions.h - (scope.settings.phone.top + scope.settings.phone.bottom)) + 'px');
+        //display
+        LayerUtils.setElementSize(scope.layers.phoneLayer.find('.phone-display'), scope.phone.display.w, scope.phone.display.h);
+        //button
+        var buttonDimension = parseInt(scope.settings.phone.bottom / 1.5);
+        LayerUtils.setElementSize(scope.layers.phoneLayer.find('.phone-button'), buttonDimension, buttonDimension);
+        scope.layers.phoneLayer.find('.phone-button').css('bottom', -(scope.settings.phone.bottom / 2) - (buttonDimension / 2));
+        scope.layers.phoneLayer.find('.phone-button').css('left', ((scope.phone.dimensions.w / 2) - (buttonDimension / 2) - scope.settings.phone.left));
+        //sub-button
+        var subButtonDimension = parseInt(buttonDimension / 2);
+        LayerUtils.setElementSize(scope.layers.phoneLayer.find('.phone-sub-button'), subButtonDimension, subButtonDimension);
+        scope.layers.phoneLayer.find('.phone-sub-button').css('bottom', parseInt(subButtonDimension) - (subButtonDimension / 2) - 1);
+        scope.layers.phoneLayer.find('.phone-sub-button').css('left', parseInt(subButtonDimension - (subButtonDimension / 2)) - 1);
+        //initPhoneMove(scope);
+    };
+
+
+    /**
+     * Method init gray zone: set size and borders.
+     * @param scope
+     */
+    LayerUtils.initGrayLayer = function (scope) {
+        // size
+        LayerUtils.setElementSize(scope.layers.grayLayer, scope.phone.display.w, scope.phone.display.h);
+        var displayPosition = PhoneUtils.getDisplayPosition(scope);
+        scope.layers.grayLayer.css('left', displayPosition.left);
+        scope.layers.grayLayer.css('top', displayPosition.top);
+        // borders
+        LayerUtils.setElementBorders(scope.layers.grayLayer, scope.calculated.leftGrayBorder, scope.calculated.rightGrayBorder, scope.calculated.topGrayBorder, scope.calculated.bottomGrayBorder, 'rgba(255, 255, 0, 0.25)');
+    };
+
     function link(scope, element, attrs) {
         var Devices = GLOBAL.uiSettings.devices;
         var uiOverlays = JSON.parse(scope.ui);
@@ -90,12 +338,21 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
                 right: 10,
                 bottom: 50
             }
-            //phone: {
-            //    left: 4,
-            //    top: 20,
-            //    right: 4,
-            //    bottom: 30
-            //}
+        };
+
+        scope.phone = {
+            display: {//phone display
+                w: 0,
+                h: 0,
+                center: {//display center coordinates
+                    x: 0,
+                    y: 0
+                }
+            },
+            dimensions: {//phone dimensions (width and height)
+                w: 0,
+                h: 0
+            }
         };
 
         // movement props
@@ -175,10 +432,7 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
             leftGrayBorder: 0,
             rightGrayBorder: 0,
             topGrayBorder: 0,
-            bottomGrayBorder: 0,
-            // center point (in range 0-1)
-            centerGrayX: 0,
-            centerGrayY: 0
+            bottomGrayBorder: 0
         };
 
         // selectors
@@ -221,42 +475,23 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
                     width: parseInt(attrs.width),
                     height: attrs.width / Math.max(Devices.portrait.aspectRatio.high, Devices.landscape.aspectRatio.high)
                 });
-                var imageAspectRatio = scope.imageProps.originalWidth / scope.imageProps.originalHeight;
-                var previewAspectRatio = scope.previewProps.width / scope.previewProps.height;
-                if (imageAspectRatio >= previewAspectRatio) { // image wider than preview
-                    scope.calculated.PSCALE = scope.previewProps.height / scope.imageProps.originalHeight;
-                    scope.calculated.MAXZF = scope.imageProps.originalWidth * scope.calculated.PSCALE / scope.previewProps.width;
-                }
-                else { // image narrower than preview
-                    scope.calculated.PSCALE = scope.previewProps.width / scope.imageProps.originalWidth;
-                    scope.calculated.MAXZF = scope.imageProps.originalHeight * scope.calculated.PSCALE / scope.previewProps.height;
-                }
-                scope.calculated.MAXZF *= 1.5; // the number 1.5 represents the maximum pixelation that we allow.  In other words, we are allowing one pixel of the image to be stretched across up to 1.5 pixels on the screen.
-                if (Math.abs(scope.calculated.MAXZF - scope.calculated.MINZF) <= 0.05) { // in case of low-resolution image
-                    scope.calculated.zoomStep = 0;
-                    scope.calculated.MAXZF = scope.calculated.MINZF;
-                }
-                else {
-                    var zoomStepsCount = Math.round(scope.previewProps.width / 5); // one step per 5px on the screen
-                    scope.calculated.zoomStep = Math.floor(10000 * ( scope.calculated.MAXZF - scope.calculated.MINZF ) / zoomStepsCount) / 10000;
-                    scope.calculated.MAXZF = Math.round(10000 * ( scope.calculated.MINZF + scope.calculated.zoomStep * zoomStepsCount )) / 10000;
-                }
-                //
-                // set preview size (with controls)
-                setElementSize(element, scope.previewProps.width, scope.previewProps.height + scope.settings.controlHeight);
-                // set glass size
-                setElementSize(scope.layers.glassLayer, scope.previewProps.width, scope.previewProps.height);
+                ZoomUtils.initZoomParams(scope);
+                ZoomUtils.initZoomFactor(scope);
+                ZonesUtils.calculateZones(scope);
+                PhoneUtils.initPhoneParams(scope);
+                LayerUtils.initGrayLayer(scope);
+                LayerUtils.setControlSize(element, scope);
                 //params exists
-                if (attrs.centerX && attrs.centerY && attrs.zoomFactor && ( attrs.centerX != '0' && attrs.centerY != '0' && attrs.zoomFactor != '0' )) {
-                    initExistDirective(scope, attrs.zoomFactor, attrs.centerX, attrs.centerY);
-                }
-                else if (attrs.face) {//face exist
-                    scope.face = JSON.parse(attrs.face);
-                    initFaceDetectionDirective(scope, attrs.facePaddingX, attrs.facePaddingY);
-                }
-                else {//default directive
-                    initDefaultDirective(scope);
-                }
+                //if (attrs.centerX && attrs.centerY && attrs.zoomFactor && ( attrs.centerX != '0' && attrs.centerY != '0' && attrs.zoomFactor != '0' )) {
+                //    initExistDirective(scope, attrs.zoomFactor, attrs.centerX, attrs.centerY);
+                //}
+                //else if (attrs.face) {//face exist
+                //    scope.face = JSON.parse(attrs.face);
+                //    initFaceDetectionDirective(scope, attrs.facePaddingX, attrs.facePaddingY);
+                //}
+                //else {//default directive
+                initDefaultDirective(scope);
+                //}
                 initImageMove(scope);
                 // zoom factor changes listener
                 scope.$watch('calculated.zoomFactor', function (newValue, oldValue) {
@@ -274,46 +509,39 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
                 }, true);
                 fillResult(scope);
             }
-        )
-        ;
+        );
     }
 
     function initExistDirective(scope, zoomFactor, centerX, centerY) {
         //zoom
-        checkZoomFactorAndApply(scope, parseFloat(zoomFactor));
+        ZoomUtils.checkZoomFactorAndApply(scope, parseFloat(zoomFactor));
         initImageZoom(scope);
         //calculate basic params
-        calculateLayers(scope);
+        calculateZones(scope);
         setDefaultPhonePosition(scope);
         //get center
         calculateExistCenterPointCoordinates(scope, parseFloat(centerX), parseFloat(centerY));
         //fill gray zone
-        initGrayZone(scope);
+        LayerUtils.initGrayLayer(scope);
         //check and zoom
         zoomImage(scope);
-        initPhoneLayer(scope);
+        LayerUtils.initPhoneLayer(scope);
     }
 
     function initDefaultDirective(scope) {
-        // recalculate zoomFactor
-        initZoomFactor(scope);
-        // calculate layers borders
-        calculateLayers(scope);
-        setDefaultPhonePosition(scope);
-        initGrayZone(scope);
         zoomImage(scope);
-        initPhoneLayer(scope);
+        LayerUtils.initPhoneLayer(scope);
     }
 
     function initFaceDetectionDirective(scope, fPaddingX, fPaddingY) {
-        calculateLayers(scope);
+        calculateZones(scope);
         var zoom = getFaceZoomFactor(scope, fPaddingX, fPaddingY);
-        checkZoomFactorAndApply(scope, zoom);
+        ZoomUtils.checkZoomFactorAndApply(scope, zoom);
         initImageZoom(scope);
         calculateExistCenterPointCoordinates(scope, parseFloat(scope.face.faceCenterX), parseFloat(scope.face.faceCenterY));
-        initGrayZone(scope);
+        LayerUtils.initGrayLayer(scope);
         zoomImage(scope);
-        initPhoneLayer(scope);
+        LayerUtils.initPhoneLayer(scope);
     }
 
     function getFaceZoomFactor(scope, fPaddingX, fPaddingY) {
@@ -352,37 +580,37 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
         if (partY > minCenterY && partY < maxCenterY) {
             scope.moveProps.y = calculateImageMovementY(scope, partY);
         }
-        {//make phonePosition
-            var phonePercent = 0;
-            var phoneX = 0;
-            //x position
-            if (partX > maxCenterX) {
-                scope.moveProps.x = calculateImageMovementX(scope, maxCenterX);
-                phonePercent = partX - maxCenterX;
-                phoneX = scope.imageProps.IDW * phonePercent;
-                scope.phoneMoveProps.x = leftPhoneCenter + phoneX;
-            }
-            if (partX < minCenterX) {
-                scope.moveProps.x = 1;//no need to move image
-                phonePercent = minCenterX - partX;
-                phoneX = scope.imageProps.IDW * phonePercent;
-                scope.phoneMoveProps.x = leftPhoneCenter - phoneX;
-            }
-            //y position
-            var phoneY = 0;
-            if (partY > maxCenterY) {
-                scope.moveProps.y = calculateImageMovementY(scope, maxCenterY);
-                phonePercent = partY - maxCenterY;
-                phoneY = scope.imageProps.IDH * phonePercent;
-                scope.phoneMoveProps.y = topPhoneCenter + phoneY;
-            }
-            if (partY < minCenterY) {
-                scope.moveProps.y = 1;//no need to move image
-                phonePercent = minCenterY - partY;
-                phoneY = scope.imageProps.IDH * phonePercent;
-                scope.phoneMoveProps.y = topPhoneCenter - phoneY;
-            }
-        }
+        //{//make phonePosition
+        //    var phonePercent = 0;
+        //    var phoneX = 0;
+        //    //x position
+        //    if (partX > maxCenterX) {
+        //        scope.moveProps.x = calculateImageMovementX(scope, maxCenterX);
+        //        phonePercent = partX - maxCenterX;
+        //        phoneX = scope.imageProps.IDW * phonePercent;
+        //        scope.phoneMoveProps.x = leftPhoneCenter + phoneX;
+        //    }
+        //    if (partX < minCenterX) {
+        //        scope.moveProps.x = 1;//no need to move image
+        //        phonePercent = minCenterX - partX;
+        //        phoneX = scope.imageProps.IDW * phonePercent;
+        //        scope.phoneMoveProps.x = leftPhoneCenter - phoneX;
+        //    }
+        //    //y position
+        //    var phoneY = 0;
+        //    if (partY > maxCenterY) {
+        //        scope.moveProps.y = calculateImageMovementY(scope, maxCenterY);
+        //        phonePercent = partY - maxCenterY;
+        //        phoneY = scope.imageProps.IDH * phonePercent;
+        //        scope.phoneMoveProps.y = topPhoneCenter + phoneY;
+        //    }
+        //    if (partY < minCenterY) {
+        //        scope.moveProps.y = 1;//no need to move image
+        //        phonePercent = minCenterY - partY;
+        //        phoneY = scope.imageProps.IDH * phonePercent;
+        //        scope.phoneMoveProps.y = topPhoneCenter - phoneY;
+        //    }
+        //}
         var checks = checkPhone(scope);
         scope.phoneMoveProps.x = checks.x;
         scope.phoneMoveProps.y = checks.y;
@@ -399,8 +627,15 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
         scope.phoneMoveProps.y = topPhoneCenter - scope.settings.phone.top;
     }
 
+    /**
+     *
+     * @param scope
+     * @param partX - coordinate center X in range [0,1]
+     * @returns {number}
+     */
     function calculateImageMovementX(scope, partX) {
         var delta = 0.00;
+        //IDW - zoomed image width
         return -(((partX - delta) * scope.imageProps.IDW) - (scope.calculated.redZoneWidth + scope.calculated.leftGrayBorder + scope.calculated.cleanZoneWidth / 2));
     }
 
@@ -478,11 +713,6 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
         };
     }
 
-    function checkZoomFactorAndApply(scope, zoomFactor) {
-        scope.calculated.zoomFactor = ( zoomFactor >= scope.calculated.MINZF && zoomFactor <= scope.calculated.MAXZF ) ? zoomFactor : ( zoomFactor < scope.calculated.MINZF ? scope.calculated.MINZF : scope.calculated.MAXZF );
-        scope.$apply();// apply zoom factor
-    }
-
     function fillResult(scope) {
         var result = {
             zoomFactor: scope.calculated.zoomFactor,
@@ -523,18 +753,6 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
         }
     }
 
-    function setElementSize(element, width, height) {
-        element.css('width', width);
-        element.css('height', height);
-    }
-
-    function setElementBorders(element, left, right, top, bottom, rgba) {
-        element.css('border-left', left + "px solid " + rgba);
-        element.css('border-right', right + "px solid " + rgba);
-        element.css('border-top', top + "px solid " + rgba);
-        element.css('border-bottom', bottom + "px solid " + rgba);
-    }
-
     function moveImage(scope, newX, newY) {
         scope.moveProps.x = newX;
         scope.moveProps.y = newY;
@@ -542,15 +760,6 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
             left: scope.moveProps.x + 'px',
             top: scope.moveProps.y + 'px'
         });
-    }
-
-    /**
-     * Method calculate zoomFactor connected with settings and image original size
-     *
-     * @param scope
-     */
-    function initZoomFactor(scope) {
-        checkZoomFactorAndApply(scope, scope.calculated.MINZF);
     }
 
     /**
@@ -567,82 +776,16 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
         scope.layers.imageLayer.css('height', scope.imageProps.IDH);
     }
 
-    function initGrayZone(scope) {
-        var delta = 0;
-        // size
-        setElementSize(scope.layers.grayLayer, scope.calculated.PCRW + delta, scope.calculated.LCRH + delta);
-        // delta
-        scope.layers.grayLayer.css('left', scope.calculated.redZoneWidth - delta / 2);
-        scope.layers.grayLayer.css('top', scope.calculated.redZoneHeight - delta / 2);
-        // borders
-        setElementBorders(scope.layers.grayLayer, scope.calculated.leftGrayBorder, scope.calculated.rightGrayBorder, scope.calculated.topGrayBorder, scope.calculated.bottomGrayBorder, 'rgba(255, 255, 0, 0.25)');
-    }
-
-    /**
-     * Make phone box layer - connected with gray zone dimensions
-     * @param scope
-     */
-    function initPhoneLayer(scope) {
-        var displayW = parseInt(scope.previewProps.width - 2 * scope.calculated.redZoneWidth);
-        var displayH = parseInt(scope.previewProps.height - 2 * scope.calculated.redZoneHeight);
-        var phoneWidth = parseInt(displayW + scope.settings.phone.left + scope.settings.phone.right);
-        var phoneHeight = parseInt(displayH + scope.settings.phone.top + scope.settings.phone.bottom);
-        //phone
-        setElementSize(scope.layers.phoneLayer, phoneWidth, phoneHeight);
-        scope.layers.phoneLayer.css('left', scope.calculated.redZoneWidth - scope.settings.phone.left);
-        scope.layers.phoneLayer.css('top', scope.calculated.redZoneHeight - scope.settings.phone.top);
-        scope.layers.phoneLayer.css('border-radius', (scope.settings.phone.top + scope.settings.phone.bottom + scope.settings.phone.left + scope.settings.phone.right) / 4);
-        //camera
-        var circleDimension = parseInt(scope.settings.phone.top / 3);
-        setElementSize(scope.layers.phoneLayer.find('.phone-camera'), circleDimension, circleDimension);
-        scope.layers.phoneLayer.find('.phone-camera').css('top', -(scope.settings.phone.top / 2) - (circleDimension / 2));
-        scope.layers.phoneLayer.find('.phone-camera').css('left', (phoneWidth / 4) - scope.settings.phone.left);
-        //dynamic
-        var lineW = displayW / 4;
-        var lineH = scope.settings.phone.top / 7;
-        setElementSize(scope.layers.phoneLayer.find('.phone-dynamic'), lineW, lineH);
-        scope.layers.phoneLayer.find('.phone-dynamic').css('top', -(scope.settings.phone.top / 2) - (lineH / 2));
-        scope.layers.phoneLayer.find('.phone-dynamic').css('left', (phoneWidth / 2) - (lineW / 2) - scope.settings.phone.left);
-        //background
-        scope.layers.phoneLayer.css('border-top', 'black ' + scope.settings.phone.top + 'px solid');
-        scope.layers.phoneLayer.css('border-bottom', 'black ' + scope.settings.phone.bottom + 'px solid');
-        scope.layers.phoneLayer.css('border-right', 'black ' + (scope.settings.phone.right + 2) + 'px solid');
-        scope.layers.phoneLayer.css('border-left', 'black ' + (scope.settings.phone.left + 2) + 'px solid');
-        scope.layers.phoneLayer.css('padding-left', (phoneWidth - (scope.settings.phone.left + scope.settings.phone.right)) + 'px');
-        scope.layers.phoneLayer.css('padding-top', (phoneHeight - (scope.settings.phone.top + scope.settings.phone.bottom)) + 'px');
-        //display
-        setElementSize(scope.layers.phoneLayer.find('.phone-display'), displayW, displayH);
-        //button
-        var buttonDimension = parseInt(scope.settings.phone.bottom / 1.5);
-        setElementSize(scope.layers.phoneLayer.find('.phone-button'), buttonDimension, buttonDimension);
-        scope.layers.phoneLayer.find('.phone-button').css('bottom', -(scope.settings.phone.bottom / 2) - (buttonDimension / 2));
-        scope.layers.phoneLayer.find('.phone-button').css('left', ((phoneWidth / 2) - (buttonDimension / 2) - scope.settings.phone.left));
-        //sub-button
-        var subButtonDimension = parseInt(buttonDimension / 2);
-        setElementSize(scope.layers.phoneLayer.find('.phone-sub-button'), subButtonDimension, subButtonDimension);
-        scope.layers.phoneLayer.find('.phone-sub-button').css('bottom', parseInt(subButtonDimension) - (subButtonDimension / 2) - 1);
-        scope.layers.phoneLayer.find('.phone-sub-button').css('left', parseInt(subButtonDimension - (subButtonDimension / 2)) - 1);
-        initPhoneMove(scope);
-    }
-
     function initPhoneMove(scope) {
         scope.layers.phoneLayer.on('mousedown', mouseDown);
-        //init
-        scope.layers.phoneLayer.css({
-            left: scope.phoneMoveProps.x + 'px',
-            top: scope.phoneMoveProps.y + 'px'
-        });
-        scope.layers.grayLayer.css({
-            left: scope.phoneMoveProps.x + scope.settings.phone.left + 'px',
-            top: scope.phoneMoveProps.y + scope.settings.phone.top + 'px'
-        });
         //check
-        __mouseMove(scope.phoneMoveProps.x, scope.phoneMoveProps.y);
+        //__mouseMove(scope.phoneMoveProps.x, scope.phoneMoveProps.y);
 
         function mouseDown(event) {
             event.preventDefault();
-            scope.phoneMoveProps.startX = event.pageX - scope.phoneMoveProps.x;
-            scope.phoneMoveProps.startY = event.pageY - scope.phoneMoveProps.y;
+            scope.phoneMoveProps.startX = event.pageX - scope.phone.display.center.x + scope.phone.display.w / 2;
+            scope.phoneMoveProps.startY = event.pageY - scope.phone.display.center.y + scope.phone.display.h / 2;
+            $log.info(scope.phoneMoveProps.startX, scope.phoneMoveProps.startY);
             //events
             scope.layers.phoneLayer.on('mousemove', mouseMove);
             scope.layers.phoneLayer.on('mouseup', mouseUp);
@@ -742,60 +885,6 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
             scope.layers.glassLayer.off('mouseup', mouseUp);
             scope.layers.phoneLayer.find('.phone-display').off('mouseup', mouseUp);
         }
-    }
-
-    function calculateLayers(scope) {
-        var Devices = GLOBAL.uiSettings.devices;
-        // WorstCaseProtraitAspectRatio (WCPAR)
-        scope.calculated.WCPAR = Math.min(Devices.portrait.aspectRatio.low, Devices.portrait.aspectRatio.high);
-        // WorstCaseLandscapeAspectRatio (WCLAR)
-        scope.calculated.WCLAR = Math.max(Devices.landscape.aspectRatio.low, Devices.landscape.aspectRatio.high);
-        // PortraitCropRectangleWidth (PCRW)
-        // AV20150928 scope.calculated.PCRW = scope.previewProps.width * scope.calculated.WCPAR;
-        scope.calculated.PCRW = scope.previewProps.height * scope.calculated.WCPAR;
-        // LandscapeCropRectangleHeight (LCRH)
-        scope.calculated.LCRH = scope.previewProps.width / scope.calculated.WCLAR;
-        // ShortestPortraitCropRectangleHeight (SPCRH)
-        scope.calculated.SPCRH = scope.calculated.PCRW / Devices.portrait.aspectRatio.high;
-        // NarrowestLandscapeCropRectangleWidth (NLCRW)
-        scope.calculated.NLCRW = scope.previewProps.width * Devices.landscape.aspectRatio.low;
-        // UI Portrait Overlay Actual Px Offsets
-        scope.calculated.UIPAOL = scope.calculated.UIPROL * scope.calculated.PCRW;
-        scope.calculated.UIPAOT = scope.calculated.UIPROT * scope.calculated.SPCRH;
-        scope.calculated.UIPAOR = scope.calculated.UIPROR * scope.calculated.PCRW;
-        scope.calculated.UIPAOB = scope.calculated.UIPROB * scope.calculated.SPCRH;
-        // UI Landscape Overlay Actual Px Offsets
-        scope.calculated.UILAOL = scope.calculated.UILROL * scope.calculated.NLCRW;
-        scope.calculated.UILAOT = scope.calculated.UILROT * scope.calculated.LCRH;
-        scope.calculated.UILAOR = scope.calculated.UILROR * scope.calculated.NLCRW;
-        scope.calculated.UILAOB = scope.calculated.UILROB * scope.calculated.LCRH;
-        // Clear Zone Size
-        scope.calculated.cleanZoneWidth = Math.min(( scope.calculated.NLCRW - scope.calculated.UILAOL - scope.calculated.UILAOR ), ( scope.calculated.PCRW - scope.calculated.UIPAOL - scope.calculated.UIPAOR ));
-        scope.calculated.cleanZoneHeight = Math.min(( scope.calculated.SPCRH - scope.calculated.UIPAOT - scope.calculated.UIPAOB ), ( scope.calculated.LCRH - scope.calculated.UILAOT - scope.calculated.UILAOB ));
-        // Gray Zone Borders
-        // top
-        var tmpTP = ( scope.calculated.SPCRH / 2 - scope.calculated.UIPAOT );
-        var tmpTL = ( scope.calculated.LCRH / 2 - scope.calculated.UILAOT );
-        var minTmpTLP = Math.min(tmpTL, tmpTP, scope.calculated.LCRH / 2);
-        scope.calculated.topGrayBorder = scope.calculated.LCRH / 2 - minTmpTLP;
-        // bottom
-        var tmpBP = ( scope.calculated.SPCRH / 2 - scope.calculated.UIPAOB );
-        var tmpBL = ( scope.calculated.LCRH / 2 - scope.calculated.UILAOB );
-        var minTmpBLP = Math.min(tmpBL, tmpBP, scope.calculated.LCRH / 2);
-        scope.calculated.bottomGrayBorder = scope.calculated.LCRH / 2 - minTmpBLP;
-        // left
-        var tmpLP = ( scope.calculated.NLCRW / 2 - scope.calculated.UILAOL );
-        var tmpLL = ( scope.calculated.PCRW / 2 - scope.calculated.UIPAOL );
-        var minTmpLLP = Math.min(tmpLL, tmpLP, scope.calculated.PCRW / 2);
-        scope.calculated.leftGrayBorder = scope.calculated.PCRW / 2 - minTmpLLP;
-        // right
-        var tmpRP = ( scope.calculated.NLCRW / 2 - scope.calculated.UILAOR );
-        var tmpRL = ( scope.calculated.PCRW / 2 - scope.calculated.UIPAOR );
-        var minTmpRLP = Math.min(tmpRL, tmpRP, scope.calculated.PCRW / 2);
-        scope.calculated.rightGrayBorder = scope.calculated.PCRW / 2 - minTmpRLP;
-        // Red Zone Size
-        scope.calculated.redZoneWidth = ( scope.previewProps.width - scope.calculated.PCRW ) / 2;
-        scope.calculated.redZoneHeight = ( scope.previewProps.height - scope.calculated.LCRH ) / 2;
     }
 
     return {
