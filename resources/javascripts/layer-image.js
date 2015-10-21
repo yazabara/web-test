@@ -73,6 +73,18 @@ imagesApp.controller('Controller', ['$scope', '$log', 'GLOBAL', function ($scope
         "faceWidth": 9,
         "faceHeight": 16
     };
+
+    $scope.imgExist = {
+        phoneCenter: {
+            x: 0.5041111,
+            y: 0.5354111
+        },
+        imageCenter: {
+            x: 0.4111111,
+            y: 0.2011111
+        },
+        zoomFactor: 1.9
+    }
 }]);
 
 
@@ -312,7 +324,7 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
      */
     ImageUtils.calculateResultCenter = function (scope) {
         return {
-            x: scope.imageProps.center.x / scope.imageProps.IDW,
+            x: -(scope.imageProps.center.x / scope.imageProps.IDW),
             y: -(scope.imageProps.center.y / scope.imageProps.IDH) //direction down
         }
     };
@@ -322,23 +334,21 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
      * @param scope
      */
     ImageUtils.calculateImageParams = function (scope) {
-        scope.imageProps.center.x = scope.imageProps.IDW / 2;
+        scope.imageProps.center.x = -scope.imageProps.IDW / 2;
         scope.imageProps.center.y = -scope.imageProps.IDH / 2;//down direction
         ImageUtils.checkPreviewInImage(scope);
     };
 
     ImageUtils.getImagePosition = function (scope) {
         return {
-            left: scope.imageProps.center.x - scope.previewProps.width / 2,
+            left: scope.imageProps.center.x + scope.previewProps.width / 2,
             top: scope.imageProps.center.y + scope.previewProps.height / 2//down direction
         }
     };
 
     ImageUtils.calculateImageCenter = function (scope) {
-        $log.info("img move " + scope.imageMoveProps.x + " , " + scope.imageMoveProps.y);
-        scope.imageProps.center.x = -(scope.imageMoveProps.x - scope.previewProps.width / 2);
+        scope.imageProps.center.x = scope.imageMoveProps.x - scope.previewProps.width / 2;
         scope.imageProps.center.y = scope.imageMoveProps.y - scope.previewProps.height / 2;
-        $log.info("img center " + scope.imageProps.center.x + " , " + scope.imageProps.center.y);
     };
 
     ImageUtils.checkPreviewInImage = function (scope) {
@@ -346,19 +356,19 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
         var x = previewPosition.left;
         var y = previewPosition.top;
         // check borders
-        var endPreviewX = x + scope.previewProps.width;
+        var endPreviewX = x - scope.previewProps.width;
         var endPreviewY = y - scope.previewProps.height;//down direction
         if (x > 0) {
-            scope.imageProps.center.x = scope.previewProps.width / 2;
+            scope.imageProps.center.x = -scope.previewProps.width / 2;
         }
-        if (endPreviewX < scope.imageProps.IDW) {
-            scope.imageProps.center.x = scope.imageProps.IDW - scope.previewProps.width / 2;
+        if (Math.abs(endPreviewX) > scope.imageProps.IDW) {
+            scope.imageProps.center.x = -scope.imageProps.IDW - scope.previewProps.width / 2;
         }
         if (y > 0) {
-            scope.imageProps.center.y = scope.previewProps.height / 2;
+            scope.imageProps.center.y = -scope.previewProps.height / 2;
         }
-        if (endPreviewY > scope.imageProps.IDH) {//down direction
-            scope.imageProps.center.y = scope.imageProps.IDH - scope.previewProps.height / 2;
+        if (Math.abs(endPreviewY) > scope.imageProps.IDH) {//down direction
+            scope.imageProps.center.y = -(scope.imageProps.IDH - scope.previewProps.height / 2);
         }
     };
 
@@ -426,6 +436,7 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
 
     LayerUtils.zoomImage = function (scope) {
         LayerUtils.setElementSize(scope.layers.imageLayer, scope.imageProps.IDW, scope.imageProps.IDH);
+        LayerUtils.fixZoomImage(scope);
     };
 
     LayerUtils.fixZoomImage = function (scope) {
@@ -458,7 +469,6 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
             top: y + 'px'
         });
     };
-
 
     /**
      * Method init gray zone: set size and borders.
@@ -631,28 +641,26 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
                 ZoomUtils.calculateZoomParams(scope);
                 ZoomUtils.calculateZoomFactor(scope);
                 ZonesUtils.calculateZones(scope);
-                ZoomUtils.calculateImageDimensions(scope);
-                ImageUtils.calculateImageParams(scope);
-                PhoneUtils.calculatePhoneParams(scope);
-                //view
-                LayerUtils.initGrayLayer(scope);
-                LayerUtils.setControlSize(element, scope);
-                LayerUtils.initPhoneLayer(scope);
                 //params exists
-                //if (attrs.centerX && attrs.centerY && attrs.zoomFactor && ( attrs.centerX != '0' && attrs.centerY != '0' && attrs.zoomFactor != '0' )) {
-                //    initExistDirective(scope, attrs.zoomFactor, attrs.centerX, attrs.centerY);
-                //}
+                if (attrs.imageCenter && attrs.phoneCenter && attrs.zoomFactor) {
+                    var imageCenter = JSON.parse(attrs.imageCenter);
+                    var phoneCenter = JSON.parse(attrs.phoneCenter);
+                    initExistDirective(element, scope, parseFloat(attrs.zoomFactor), imageCenter.x, imageCenter.y, phoneCenter.x, phoneCenter.y);
+                } else {
+                    initDefaultDirective(element, scope);
+                }
                 //else if (attrs.face) {//face exist
                 //    scope.face = JSON.parse(attrs.face);
                 //    initFaceDetectionDirective(scope, attrs.facePaddingX, attrs.facePaddingY);
                 //}
                 //else {//default directive
-                initDefaultDirective(scope);
+
                 initPhoneMove(scope);
                 initImageMove(scope);
-                //}
-                //initImageMove(scope);
-                // zoom factor changes listener
+                LayerUtils.fixZoomImage(scope);
+                PhoneUtils.calculateDisplayCenter(scope);
+                ImageUtils.calculateImageCenter(scope);
+
                 scope.$watch('calculated.zoomFactor', function (newValue, oldValue) {
                     if (newValue < scope.calculated.MINZF) {
                         newValue = scope.calculated.MINZF;
@@ -660,10 +668,11 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
                     if (newValue > scope.calculated.MAXZF) {
                         newValue = scope.calculated.MAXZF;
                     }
+                    var img = ImageUtils.calculateResultCenter(scope);
+                    $log.info("old: " + img.x + " , " + img.y);
                     scope.calculated.zoomFactor = newValue;
-                    ZoomUtils.calculateImageDimensions(scope);
-                    LayerUtils.zoomImage(scope);
-                    LayerUtils.fixZoomImage(scope);
+                    restoreImgPosition(scope, img.x, img.y);
+                    ImageUtils.calculateImageCenter(scope);
                     fillResult(scope);
                 }, true);
                 fillResult(scope);
@@ -671,11 +680,44 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
         );
     }
 
-    function initExistDirective(scope, zoomFactor, imageCenterX, imageCenteY, phoneCenterX, phoneCenterY) {
-
+    function initExistDirective(element, scope, zoomFactor, imageCenterX, imageCenterY, phoneCenterX, phoneCenterY) {
+        LayerUtils.setControlSize(element, scope);
+        ZoomUtils.checkZoomFactorAndApply(scope, zoomFactor);
+        restorePhonePosition(scope, phoneCenterX, phoneCenterY);
+        restoreImgPosition(scope, imageCenterX, imageCenterY);
     }
 
-    function initDefaultDirective(scope) {
+    function restorePhonePosition(scope, phoneCenterX, phoneCenterY) {
+        PhoneUtils.calculatePhoneParams(scope);
+        scope.phone.display.center.x = phoneCenterX * scope.previewProps.width;
+        scope.phone.display.center.y = phoneCenterY * scope.previewProps.height;
+        PhoneUtils.checkDisplayInPreview(scope);
+        //view
+        LayerUtils.initGrayLayer(scope);
+        LayerUtils.initPhoneLayer(scope);
+    }
+
+    function restoreImgPosition(scope, imageCenterX, imageCenterY) {
+        //initial params
+        ZoomUtils.calculateImageDimensions(scope);
+        scope.imageProps.center.x = -(imageCenterX * scope.imageProps.IDW);
+        scope.imageProps.center.y = -(imageCenterY * scope.imageProps.IDH);
+        ImageUtils.checkPreviewInImage(scope);
+        //move, zoom image
+        MovementUtils.moveImage(scope);
+        LayerUtils.zoomImage(scope);
+    }
+
+    function initDefaultDirective(element, scope) {
+        //initial params
+        ZoomUtils.calculateImageDimensions(scope);
+        ImageUtils.calculateImageParams(scope);
+        PhoneUtils.calculatePhoneParams(scope);
+        //view
+        LayerUtils.initGrayLayer(scope);
+        LayerUtils.setControlSize(element, scope);
+        LayerUtils.initPhoneLayer(scope);
+        //move , zoom image
         MovementUtils.moveImage(scope);
         LayerUtils.zoomImage(scope);
     }
