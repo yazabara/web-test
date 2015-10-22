@@ -692,6 +692,10 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
         scope.phone.display.center.x = phoneCenterX * scope.previewProps.width;
         scope.phone.display.center.y = phoneCenterY * scope.previewProps.height;
         PhoneUtils.checkDisplayInPreview(scope);
+        //restore position
+        var phonePosition = PhoneUtils.getPhonePosition(scope);
+        scope.phoneMoveProps.x = phonePosition.left;
+        scope.phoneMoveProps.y = phonePosition.top;
         //view
         LayerUtils.initGrayLayer(scope);
         LayerUtils.initPhoneLayer(scope);
@@ -703,6 +707,10 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
         scope.imageProps.center.x = -(imageCenterX * scope.imageProps.IDW);
         scope.imageProps.center.y = -(imageCenterY * scope.imageProps.IDH);
         ImageUtils.checkPreviewInImage(scope);
+        //restore positions
+        var imagePosition = ImageUtils.getImagePosition(scope);
+        scope.imageMoveProps.x = imagePosition.left;
+        scope.imageMoveProps.y = imagePosition.top;
         //move, zoom image
         MovementUtils.moveImage(scope);
         LayerUtils.zoomImage(scope);
@@ -720,93 +728,6 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
         //move , zoom image
         MovementUtils.moveImage(scope);
         LayerUtils.zoomImage(scope);
-    }
-
-    function initFaceDetectionDirective(scope, fPaddingX, fPaddingY) {
-        calculateZones(scope);
-        var zoom = ZonesUtils.getFaceZoomFactor(scope, fPaddingX, fPaddingY);
-        ZoomUtils.checkZoomFactorAndApply(scope, zoom);
-        initImageZoom(scope);
-        calculateExistCenterPointCoordinates(scope, parseFloat(scope.face.faceCenterX), parseFloat(scope.face.faceCenterY));
-        LayerUtils.initGrayLayer(scope);
-        zoomImage(scope);
-        LayerUtils.initPhoneLayer(scope);
-    }
-
-    function calculateExistCenterPointCoordinates(scope, partX, partY) {
-        if (partX < 0 || partX > 1 || partY < 0 || partY > 1) {
-            return;// parts must be in range [0,1]
-        }
-        var displayW = parseInt(scope.previewProps.width - 2 * scope.calculated.redZoneWidth);
-        var displayH = parseInt(scope.previewProps.height - 2 * scope.calculated.redZoneHeight);
-        //min/max position of center Gray zone = red zone + left gray zone + half of clear zone
-        var minCenterX = (scope.calculated.redZoneWidth + scope.calculated.leftGrayBorder + scope.calculated.cleanZoneWidth / 2 ) / scope.imageProps.IDW;
-        var maxCenterX = 1 - ((scope.calculated.redZoneWidth + scope.calculated.rightGrayBorder + scope.calculated.cleanZoneWidth / 2) / scope.imageProps.IDW);
-        var minCenterY = (scope.calculated.redZoneHeight + scope.calculated.topGrayBorder + scope.calculated.cleanZoneHeight / 2 ) / scope.imageProps.IDH;
-        var maxCenterY = 1 - ((scope.calculated.redZoneHeight + scope.calculated.bottomGrayBorder + scope.calculated.cleanZoneHeight / 2) / scope.imageProps.IDH);
-        //
-        //0.0 point for phone
-        var leftPhoneCenter = scope.previewProps.width / 2 - displayW / 2;
-        var topPhoneCenter = scope.previewProps.height / 2 - displayH / 2;
-        //in range - no phone move
-        if (partX > minCenterX && partX < maxCenterX) {
-            scope.imageMoveProps.x = calculateImageMovementX(scope, partX);
-        }
-        //in range - no phone move
-        if (partY > minCenterY && partY < maxCenterY) {
-            scope.imageMoveProps.y = calculateImageMovementY(scope, partY);
-        }
-        //{//make phonePosition
-        //    var phonePercent = 0;
-        //    var phoneX = 0;
-        //    //x position
-        //    if (partX > maxCenterX) {
-        //        scope.imageMoveProps.x = calculateImageMovementX(scope, maxCenterX);
-        //        phonePercent = partX - maxCenterX;
-        //        phoneX = scope.imageProps.IDW * phonePercent;
-        //        scope.phoneMoveProps.x = leftPhoneCenter + phoneX;
-        //    }
-        //    if (partX < minCenterX) {
-        //        scope.imageMoveProps.x = 1;//no need to move image
-        //        phonePercent = minCenterX - partX;
-        //        phoneX = scope.imageProps.IDW * phonePercent;
-        //        scope.phoneMoveProps.x = leftPhoneCenter - phoneX;
-        //    }
-        //    //y position
-        //    var phoneY = 0;
-        //    if (partY > maxCenterY) {
-        //        scope.imageMoveProps.y = calculateImageMovementY(scope, maxCenterY);
-        //        phonePercent = partY - maxCenterY;
-        //        phoneY = scope.imageProps.IDH * phonePercent;
-        //        scope.phoneMoveProps.y = topPhoneCenter + phoneY;
-        //    }
-        //    if (partY < minCenterY) {
-        //        scope.imageMoveProps.y = 1;//no need to move image
-        //        phonePercent = minCenterY - partY;
-        //        phoneY = scope.imageProps.IDH * phonePercent;
-        //        scope.phoneMoveProps.y = topPhoneCenter - phoneY;
-        //    }
-        //}
-        var checks = checkPhone(scope);
-        scope.phoneMoveProps.x = checks.x;
-        scope.phoneMoveProps.y = checks.y;
-    }
-
-    /**
-     *
-     * @param scope
-     * @param partX - coordinate center X in range [0,1]
-     * @returns {number}
-     */
-    function calculateImageMovementX(scope, partX) {
-        var delta = 0.00;
-        //IDW - zoomed image width
-        return -(((partX - delta) * scope.imageProps.IDW) - (scope.calculated.redZoneWidth + scope.calculated.leftGrayBorder + scope.calculated.cleanZoneWidth / 2));
-    }
-
-    function calculateImageMovementY(scope, partY) {
-        var delta = 0.00;
-        return -(((partY - delta) * scope.imageProps.IDH) - (scope.calculated.redZoneHeight + scope.calculated.topGrayBorder + scope.calculated.cleanZoneHeight / 2));
     }
 
     function fillResult(scope) {
