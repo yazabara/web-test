@@ -5,6 +5,14 @@ layer-image {
      /*TODO delete*/
 }
 
+div.test {
+    width: 2px;
+    height: 2px;
+    background: red;
+    position: absolute;
+    z-index: 10000;
+}
+
 layer-image .glass-wrapper {
     overflow: hidden;
     position: relative;
