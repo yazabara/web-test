@@ -179,7 +179,7 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
     };
 
     /**
-     *Method restore display center by cleaar zone
+     * Method restore display center by clear zone
      * @param scope
      * @param centerX - in range [0,1]
      * @param centerY - in range [0,1]
@@ -229,7 +229,7 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
         //shift in px
         var shiftPx = shiftImageX * scope.imageProps.IDW;
         var shiftPy = shiftImageY * scope.imageProps.IDH;
-        //shift in preveiw
+        //shift in preview
         var shiftX = shiftPx / scope.previewProps.width;
         var shiftY = shiftPy / scope.previewProps.height;
         //
@@ -307,9 +307,9 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
     ZoomUtils.getFaceZoomFactor = function (scope, fPaddingX, fPaddingY) {
         var facePaddingX = fPaddingX ? parseFloat(fPaddingX) : 0.1;
         var facePaddingY = fPaddingY ? parseFloat(fPaddingY) : 0.1;
-        // width and height in range [0,1]
-        var AdjustedFaceWidth = Math.max(Math.min(( scope.face.faceWidth ) * ( 1 + ( 2 * facePaddingX ) ), 1), 0);
-        var AdjustedFaceHeight = Math.max(Math.min(( scope.face.faceHeight ) * ( 1 + ( 2 * facePaddingY ) ), 1), 0);
+        //face dimensions with padding in range [0,1]
+        var AdjustedFaceWidth = Math.max(Math.min((scope.face.faceWidth + (2 * facePaddingX ) ), 1), 0);
+        var AdjustedFaceHeight = Math.max(Math.min((scope.face.faceHeight + ( 2 * facePaddingY ) ), 1), 0);
         var clearPlace = Math.min(scope.calculated.cleanZoneWidth * scope.imageProps.originalWidth / scope.previewProps.width, scope.calculated.cleanZoneHeight * scope.imageProps.originalHeight / scope.previewProps.height);
         var facePlace = Math.min(AdjustedFaceWidth * scope.imageProps.originalWidth, AdjustedFaceHeight * scope.imageProps.originalHeight);
         // zoom
@@ -743,8 +743,6 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
                 } else {
                     initDefaultDirective(element, scope);
                 }
-
-
                 initPhoneMove(scope);
                 initImageMove(scope);
                 LayerUtils.fixZoomImage(scope);
@@ -787,29 +785,19 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
      * @param fPaddingY - in range [0,1]
      */
     function initFaceDetectionDirective(element, scope, fPaddingX, fPaddingY) {
-        var facePaddingX = fPaddingX ? parseFloat(fPaddingX) : 0.1;
-        var facePaddingY = fPaddingY ? parseFloat(fPaddingY) : 0.1;
-        //face dimensions with padding in range [0,1]
-        var AdjustedFaceWidth = Math.max(Math.min((scope.face.faceWidth + (2 * facePaddingX ) ), 1), 0);
-        var AdjustedFaceHeight = Math.max(Math.min((scope.face.faceHeight + ( 2 * facePaddingY ) ), 1), 0);
-        var clearPlace = Math.min(scope.calculated.cleanZoneWidth * scope.imageProps.originalWidth / scope.previewProps.width, scope.calculated.cleanZoneHeight * scope.imageProps.originalHeight / scope.previewProps.height);
-        var facePlace = Math.min(AdjustedFaceWidth * scope.imageProps.originalWidth, AdjustedFaceHeight * scope.imageProps.originalHeight);
-        // zoom
-        var zoom = clearPlace / facePlace;
+        var zoom = ZoomUtils.getFaceZoomFactor(scope, fPaddingX, fPaddingY);
         ZoomUtils.checkZoomFactor(scope, zoom);
         ZoomUtils.calculateImageDimensions(scope);
-
         //min/max position of center Gray zone = red zone + left gray zone + half of clear zone
         var minCenterX = (scope.calculated.redZoneWidth + scope.calculated.leftGrayBorder + scope.calculated.cleanZoneWidth / 2 ) / scope.imageProps.IDW;
         var maxCenterX = 1 - ((scope.calculated.redZoneWidth + scope.calculated.rightGrayBorder + scope.calculated.cleanZoneWidth / 2) / scope.imageProps.IDW);
         var minCenterY = (scope.calculated.redZoneHeight + scope.calculated.topGrayBorder + scope.calculated.cleanZoneHeight / 2 ) / scope.imageProps.IDH;
         var maxCenterY = 1 - ((scope.calculated.redZoneHeight + scope.calculated.bottomGrayBorder + scope.calculated.cleanZoneHeight / 2) / scope.imageProps.IDH);
-
+        //default values
         var imgX = scope.face.faceCenterX;
         var imgY = scope.face.faceCenterY;
         var clearShiftX = 0;
         var clearShiftY = 0;
-
         //x position
         if (imgX > maxCenterX) {
             clearShiftX = imgX - maxCenterX;//im > maxCenter -> to right shift
@@ -820,7 +808,7 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
             clearShiftX = imgX - minCenterX;//img < minCenter -> to left shift
             imgX = minCenterX;
         }
-
+        //y position
         if (imgY > maxCenterY) {
             clearShiftY = imgY - maxCenterY;//img > maxCenter -> to right shift
             imgY = maxCenterY;
@@ -830,9 +818,6 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
             clearShiftY = imgY - minCenterY;//img < minCenter -> to left shift
             imgY = minCenterY;
         }
-
-        $log.info('img ' + imgX + ' , ' + imgY + ' shifts : ' + clearShiftX + ' , ' + clearShiftY);
-
         initExistDirective(element, scope, zoom, imgX, imgY, clearShiftX, clearShiftY);
     }
 
