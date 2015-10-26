@@ -367,6 +367,125 @@ layerModule.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
         });
     };
 
+    MovementUtils.initPhoneMove = function (scope, resultFunc) {
+        scope.layers.phoneLayer.on('mousedown', mouseDown);
+
+        var phonePosition = PhoneUtils.getPhonePosition(scope);
+        scope.phoneMoveProps.x = phonePosition.left;
+        scope.phoneMoveProps.y = phonePosition.top;
+
+        function mouseDown(event) {
+            event.preventDefault();
+            scope.phoneMoveProps.startX = event.pageX - scope.phoneMoveProps.x;
+            scope.phoneMoveProps.startY = event.pageY - scope.phoneMoveProps.y;
+            //events
+            scope.layers.phoneLayer.on('mousemove', mouseMove);
+            scope.layers.phoneLayer.on('mouseup', mouseUp);
+            scope.layers.directiveElement.on('mouseleave', mouseUp);
+            event.stopPropagation();
+        }
+
+        function mouseMove(event) {
+            __mouseMove(event.pageX, event.pageY);
+            event.stopPropagation();
+        }
+
+        function __mouseMove(eventX, eventY) {
+            var x = eventX - scope.phoneMoveProps.startX;
+            var y = eventY - scope.phoneMoveProps.startY;
+            //gray borders
+            var grayZoneLeft = x + scope.settings.phone.left;
+            var grayZoneRight = grayZoneLeft + parseInt(scope.layers.grayLayer.css('width').replace('px', ''));
+            var grayZoneTop = y + scope.settings.phone.top;
+            var grayZoneBottom = grayZoneTop + parseInt(scope.layers.grayLayer.css('height').replace('px', ''));
+            //checks
+            if (grayZoneLeft > 0 && grayZoneRight < scope.previewProps.width) {
+                scope.phoneMoveProps.x = x;
+                scope.layers.phoneLayer.css({
+                    left: x + 'px'
+                });
+                scope.layers.grayLayer.css({
+                    left: x + scope.settings.phone.left + 'px'
+                });
+            }
+            if (grayZoneTop > 0 && grayZoneBottom < scope.previewProps.height) {
+                scope.phoneMoveProps.y = y;
+                scope.layers.phoneLayer.css({
+                    top: y + 'px'
+                });
+                scope.layers.grayLayer.css({
+                    top: y + scope.settings.phone.top + 'px'
+                });
+            }
+            PhoneUtils.calculateDisplayCenter(scope);
+            resultFunc(scope);
+        }
+
+        function mouseUp() {
+            scope.layers.phoneLayer.off('mousemove', mouseMove);
+            scope.layers.phoneLayer.off('mouseup', mouseUp);
+        }
+    };
+
+    MovementUtils.initImageMove = function (scope, resultFunc) {
+        var imagePosition = ImageUtils.getImagePosition(scope);
+        scope.imageMoveProps.x = imagePosition.left;
+        scope.imageMoveProps.y = imagePosition.top;
+
+        scope.layers.glassLayer.on('mousedown', mouseDown);
+        scope.layers.phoneLayer.find('.phone-display').on('mousedown', mouseDown);
+
+        function mouseDown(event) {
+            event.preventDefault();
+            scope.imageMoveProps.startX = event.pageX - scope.imageMoveProps.x;
+            scope.imageMoveProps.startY = event.pageY - scope.imageMoveProps.y;
+            //events
+            scope.layers.glassLayer.on('mousemove', mouseMove);
+            scope.layers.glassLayer.on('mouseup', mouseUp);
+            //
+            scope.layers.phoneLayer.find('.phone-display').on('mousemove', mouseMove);
+            scope.layers.phoneLayer.find('.phone-display').on('mouseup', mouseUp);
+            //
+            scope.layers.directiveElement.on('mouseleave', mouseUp);
+            //init params
+            scope.layers.imageLayer.css({
+                left: scope.imageMoveProps.x + 'px',
+                top: scope.imageMoveProps.y + 'px'
+            });
+            event.stopPropagation();
+        }
+
+        function mouseMove(event) {
+            var x = event.pageX - scope.imageMoveProps.startX;
+            var y = event.pageY - scope.imageMoveProps.startY;
+            var endXImage = x + scope.imageProps.IDW;
+            var endYImage = y + scope.imageProps.IDH;
+
+            if (x < 0 && endXImage > scope.previewProps.width) {
+                scope.imageMoveProps.x = x;
+                scope.layers.imageLayer.css({
+                    left: x + 'px'
+                });
+            }
+            if (y < 0 && endYImage > scope.previewProps.height) {
+                scope.imageMoveProps.y = y;
+                scope.layers.imageLayer.css({
+                    top: y + 'px'
+                });
+            }
+            ImageUtils.calculateImageCenter(scope);
+            resultFunc(scope);
+            event.stopPropagation();
+        }
+
+        function mouseUp() {
+            scope.layers.glassLayer.off('mousemove', mouseMove);
+            scope.layers.phoneLayer.find('.phone-display').off('mousemove', mouseMove);
+            scope.layers.glassLayer.off('mouseup', mouseUp);
+            scope.layers.phoneLayer.find('.phone-display').off('mouseup', mouseUp);
+        }
+    };
+
     //img calculating
     var ImageUtils = {};
 
@@ -704,8 +823,8 @@ layerModule.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
                 } else {
                     initDefaultDirective(element, scope);
                 }
-                initPhoneMove(scope);
-                initImageMove(scope);
+                MovementUtils.initPhoneMove(scope, fillResult);
+                MovementUtils.initImageMove(scope, fillResult);
                 LayerUtils.fixZoomImage(scope);
                 PhoneUtils.calculateDisplayCenter(scope);
                 ImageUtils.calculateImageCenter(scope);
@@ -854,125 +973,6 @@ layerModule.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
         scope.callBackMethod({
             imageLayerResult: result
         });
-    }
-
-    function initPhoneMove(scope) {
-        scope.layers.phoneLayer.on('mousedown', mouseDown);
-
-        var phonePosition = PhoneUtils.getPhonePosition(scope);
-        scope.phoneMoveProps.x = phonePosition.left;
-        scope.phoneMoveProps.y = phonePosition.top;
-
-        function mouseDown(event) {
-            event.preventDefault();
-            scope.phoneMoveProps.startX = event.pageX - scope.phoneMoveProps.x;
-            scope.phoneMoveProps.startY = event.pageY - scope.phoneMoveProps.y;
-            //events
-            scope.layers.phoneLayer.on('mousemove', mouseMove);
-            scope.layers.phoneLayer.on('mouseup', mouseUp);
-            scope.layers.directiveElement.on('mouseleave', mouseUp);
-            event.stopPropagation();
-        }
-
-        function mouseMove(event) {
-            __mouseMove(event.pageX, event.pageY);
-            event.stopPropagation();
-        }
-
-        function __mouseMove(eventX, eventY) {
-            var x = eventX - scope.phoneMoveProps.startX;
-            var y = eventY - scope.phoneMoveProps.startY;
-            //gray borders
-            var grayZoneLeft = x + scope.settings.phone.left;
-            var grayZoneRight = grayZoneLeft + parseInt(scope.layers.grayLayer.css('width').replace('px', ''));
-            var grayZoneTop = y + scope.settings.phone.top;
-            var grayZoneBottom = grayZoneTop + parseInt(scope.layers.grayLayer.css('height').replace('px', ''));
-            //checks
-            if (grayZoneLeft > 0 && grayZoneRight < scope.previewProps.width) {
-                scope.phoneMoveProps.x = x;
-                scope.layers.phoneLayer.css({
-                    left: x + 'px'
-                });
-                scope.layers.grayLayer.css({
-                    left: x + scope.settings.phone.left + 'px'
-                });
-            }
-            if (grayZoneTop > 0 && grayZoneBottom < scope.previewProps.height) {
-                scope.phoneMoveProps.y = y;
-                scope.layers.phoneLayer.css({
-                    top: y + 'px'
-                });
-                scope.layers.grayLayer.css({
-                    top: y + scope.settings.phone.top + 'px'
-                });
-            }
-            PhoneUtils.calculateDisplayCenter(scope);
-            fillResult(scope);
-        }
-
-        function mouseUp() {
-            scope.layers.phoneLayer.off('mousemove', mouseMove);
-            scope.layers.phoneLayer.off('mouseup', mouseUp);
-        }
-    }
-
-    function initImageMove(scope) {
-        var imagePosition = ImageUtils.getImagePosition(scope);
-        scope.imageMoveProps.x = imagePosition.left;
-        scope.imageMoveProps.y = imagePosition.top;
-
-        scope.layers.glassLayer.on('mousedown', mouseDown);
-        scope.layers.phoneLayer.find('.phone-display').on('mousedown', mouseDown);
-
-        function mouseDown(event) {
-            event.preventDefault();
-            scope.imageMoveProps.startX = event.pageX - scope.imageMoveProps.x;
-            scope.imageMoveProps.startY = event.pageY - scope.imageMoveProps.y;
-            //events
-            scope.layers.glassLayer.on('mousemove', mouseMove);
-            scope.layers.glassLayer.on('mouseup', mouseUp);
-            //
-            scope.layers.phoneLayer.find('.phone-display').on('mousemove', mouseMove);
-            scope.layers.phoneLayer.find('.phone-display').on('mouseup', mouseUp);
-            //
-            scope.layers.directiveElement.on('mouseleave', mouseUp);
-            //init params
-            scope.layers.imageLayer.css({
-                left: scope.imageMoveProps.x + 'px',
-                top: scope.imageMoveProps.y + 'px'
-            });
-            event.stopPropagation();
-        }
-
-        function mouseMove(event) {
-            var x = event.pageX - scope.imageMoveProps.startX;
-            var y = event.pageY - scope.imageMoveProps.startY;
-            var endXImage = x + scope.imageProps.IDW;
-            var endYImage = y + scope.imageProps.IDH;
-
-            if (x < 0 && endXImage > scope.previewProps.width) {
-                scope.imageMoveProps.x = x;
-                scope.layers.imageLayer.css({
-                    left: x + 'px'
-                });
-            }
-            if (y < 0 && endYImage > scope.previewProps.height) {
-                scope.imageMoveProps.y = y;
-                scope.layers.imageLayer.css({
-                    top: y + 'px'
-                });
-            }
-            ImageUtils.calculateImageCenter(scope);
-            fillResult(scope);
-            event.stopPropagation();
-        }
-
-        function mouseUp() {
-            scope.layers.glassLayer.off('mousemove', mouseMove);
-            scope.layers.phoneLayer.find('.phone-display').off('mousemove', mouseMove);
-            scope.layers.glassLayer.off('mouseup', mouseUp);
-            scope.layers.phoneLayer.find('.phone-display').off('mouseup', mouseUp);
-        }
     }
 
     return {
