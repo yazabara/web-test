@@ -39,9 +39,9 @@ var layerModule = angular.module('yazabara.layers', [])
             UI: {
                 overlays: {
                     portrait: {
-                        left: 0,
+                        left: 60,
                         top: 70,
-                        right: 0,
+                        right: 30,
                         bottom: 70
                     },
                     landscape: {
@@ -55,7 +55,7 @@ var layerModule = angular.module('yazabara.layers', [])
         }
     });
 
-layerModule.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
+layerModule.directive('layerImage', ['$log', 'GLOBAL', '$document', function ($log, GLOBAL, $document) {
 
     var CENTER = 0.5;
 
@@ -380,8 +380,7 @@ layerModule.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
             scope.phoneMoveProps.startY = event.pageY - scope.phoneMoveProps.y;
             //events
             scope.layers.phoneLayer.on('mousemove', mouseMove);
-            scope.layers.phoneLayer.on('mouseup', mouseUp);
-            scope.layers.directiveElement.on('mouseleave', mouseUp);
+            $document.on('mouseup', mouseUp);
             event.stopPropagation();
         }
 
@@ -423,7 +422,7 @@ layerModule.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
 
         function mouseUp() {
             scope.layers.phoneLayer.off('mousemove', mouseMove);
-            scope.layers.phoneLayer.off('mouseup', mouseUp);
+            $document.off('mouseup', mouseUp);
         }
     };
 
