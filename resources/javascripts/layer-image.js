@@ -1,98 +1,61 @@
-'use strict';
-
-var imagesApp = angular.module('LayersImageApp', ['ui.bootstrap-slider'], function () {
-
-}).constant('GLOBAL', {
-    //settings from CONFIGURATION:
-    uiSettings: {
-        devices: {
-            portrait: {
-                aspectRatio: {
-                    low: 0.563,
-                    high: 0.563
-                },
-                screenSize: {
-                    width: {
-                        min: 320,
-                        max: 414
+var layerModule = angular.module('yazabara.layers', [])
+    .constant('GLOBAL', {
+        //settings from CONFIGURATION:
+        uiSettings: {
+            devices: {
+                portrait: {
+                    aspectRatio: {
+                        low: 0.563,
+                        high: 0.563
                     },
-                    height: {
-                        min: 568,
-                        max: 736
+                    screenSize: {
+                        width: {
+                            min: 320,
+                            max: 414
+                        },
+                        height: {
+                            min: 568,
+                            max: 736
+                        }
+                    }
+                },
+                landscape: {
+                    aspectRatio: {
+                        low: 1.7777,
+                        high: 1.4777
+                    },
+                    screenSize: {
+                        width: {
+                            min: 640,
+                            max: 640
+                        },
+                        height: {
+                            min: 640,
+                            max: 720
+                        }
                     }
                 }
             },
-            landscape: {
-                aspectRatio: {
-                    low: 1.7777,
-                    high: 1.4777
-                },
-                screenSize: {
-                    width: {
-                        min: 640,
-                        max: 640
+            UI: {
+                overlays: {
+                    portrait: {
+                        left: 0,
+                        top: 70,
+                        right: 0,
+                        bottom: 70
                     },
-                    height: {
-                        min: 640,
-                        max: 720
+                    landscape: {
+                        left: 0,
+                        top: 20,
+                        right: 0,
+                        bottom: 20
                     }
                 }
             }
-        },
-        UI: {
-            overlays: {
-                portrait: {
-                    left: 0,
-                    top: 70,
-                    right: 0,
-                    bottom: 70
-                },
-                landscape: {
-                    left: 0,
-                    top: 20,
-                    right: 0,
-                    bottom: 20
-                }
-            }
         }
-    }
-});
+    });
 
-imagesApp.controller('Controller', ['$scope', '$log', 'GLOBAL', function ($scope, $log, GLOBAL) {
-    $log.info('controller was initialized');
-
-    $scope.resultCallback = function (result) {
-        $log.info(result.zoomFactor + ' image : ' + result.imageCenter.x + ', ' + result.imageCenter.y + ' phone: ' + result.phoneCenter.x + ', ' + result.phoneCenter.y + " shift: " + result.clearCenterShifts.shiftX + ', ' + result.clearCenterShifts.shiftY);
-    };
-
-    $scope.ui = GLOBAL.uiSettings.UI.overlays;
-
-    $scope.face = {
-        "faceCenterX": 0.2,
-        "faceCenterY": 0.5,
-        "faceWidth": 0.1,
-        "faceHeight": 0.1
-    };
-
-    $scope.imgExist = {
-        phoneCenter: {
-            x: 0.5041111,
-            y: 0.5354111
-        },
-        clearShift: {
-            shiftX: 0.06,
-            shiftY: -0.2
-        },
-        imageCenter: {
-            centerX: 0.5,
-            centerY: 0.5
-        },
-        zoomFactor: 1.9
-    }
-}]);
-
-
-imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
+layerModule.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
 
     var CENTER = 0.5;
 
