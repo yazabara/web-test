@@ -84,8 +84,8 @@ imagesApp.controller('Controller', ['$scope', '$log', 'GLOBAL', function ($scope
             shiftY: -0.2
         },
         imageCenter: {
-            x: 0.5,
-            y: 0.5
+            centerX: 0.5,
+            centerY: 0.5
         },
         zoomFactor: 1.9
     }
@@ -728,15 +728,13 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
                 });
                 //calculating
                 ZoomUtils.calculateZoomParams(scope);//min max zoom
-                ZoomUtils.calculateZoomFactor(scope);//default zoom
-                ZoomUtils.calculateImageDimensions(scope);//img dimensions with zoom
                 ZonesUtils.calculateZones(scope);//zones
                 PhoneUtils.calculatePhoneParams(scope);//default position
                 //params exists
                 if (attrs.imageCenter && attrs.clearShift && attrs.zoomFactor) {
                     var imageCenter = JSON.parse(attrs.imageCenter);
                     var clearShift = JSON.parse(attrs.clearShift);
-                    initExistDirective(element, scope, parseFloat(attrs.zoomFactor), imageCenter.x, imageCenter.y, clearShift.shiftX, clearShift.shiftY);
+                    initExistDirective(element, scope, parseFloat(attrs.zoomFactor), imageCenter.centerX, imageCenter.centerY, clearShift.shiftX, clearShift.shiftY);
                 } else if (attrs.face) {//face exist
                     scope.face = JSON.parse(attrs.face);
                     initFaceDetectionDirective(element, scope, attrs.facePaddingX, attrs.facePaddingY);
@@ -757,7 +755,6 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
                         newValue = scope.calculated.MAXZF;
                     }
                     var img = ImageUtils.calculateResultPhoneCenter(scope);
-                    $log.info("old: " + img.x + " , " + img.y);
                     scope.calculated.zoomFactor = newValue;
                     restoreImgPosition(scope, img.x, img.y);
                     ImageUtils.calculateImageCenter(scope);
@@ -768,11 +765,11 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
         );
     }
 
-    function initExistDirective(element, scope, zoomFactor, imageCenterX, imageCenterY, phoneCenterX, phoneCenterY) {
+    function initExistDirective(element, scope, zoomFactor, imageCenterX, imageCenterY, clearShiftX, clearShiftY) {
         LayerUtils.setControlSize(element, scope);
         ZoomUtils.checkZoomFactorAndApply(scope, zoomFactor);
         ZoomUtils.calculateImageDimensions(scope);
-        restorePhonePosition(scope, phoneCenterX, phoneCenterY);
+        restorePhonePosition(scope, clearShiftX, clearShiftY);
         restoreImgPosition(scope, imageCenterX, imageCenterY);
     }
 
@@ -822,6 +819,12 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
     }
 
     function restorePhonePosition(scope, clearShiftX, clearShiftY) {
+        if (!clearShiftX) {
+            clearShiftX = 0;
+        }
+        if (!clearShiftY) {
+            clearShiftY = 0;
+        }
         PhoneUtils.calculatePhoneParams(scope);
         var clearCenter = PhoneUtils.restoreClearCenterByShifts(scope, clearShiftX, clearShiftY);
         var displayCenter = PhoneUtils.restoreDisplayCenterByClearCenter(scope, clearCenter.x, clearCenter.y);
@@ -838,6 +841,12 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
     }
 
     function restoreImgPosition(scope, imageCenterX, imageCenterY) {
+        if (!imageCenterX) {
+            imageCenterX = CENTER;
+        }
+        if (!imageCenterY) {
+            imageCenterY = CENTER;
+        }
         //initial params
         ZoomUtils.calculateImageDimensions(scope);
         scope.imageProps.center.x = -(imageCenterX * scope.imageProps.IDW);
@@ -853,6 +862,8 @@ imagesApp.directive('layerImage', ['$log', 'GLOBAL', function ($log, GLOBAL) {
     }
 
     function initDefaultDirective(element, scope) {
+        ZoomUtils.calculateZoomFactor(scope);//default zoom
+        ZoomUtils.calculateImageDimensions(scope);//img dimensions with zoom
         //initial params
         ImageUtils.calculateImageParams(scope);
         PhoneUtils.calculatePhoneParams(scope);
