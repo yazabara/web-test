@@ -40,7 +40,7 @@ There are 3 wa y to use it:
 
 Required params: UI and Width
 
-#### UI
+#### -- UI
 
 ```
 <layer-image data-ui="{{uiSetting}}" ...
@@ -52,7 +52,7 @@ UI overlays for two view types : portrait and landscape.
 "landscape":{"left":75,"right":75,"top":75,"bottom":75}}
 ```
 
-#### Width
+#### -- Width
 
 ```
 <layer-image data-width="500" ...
@@ -60,7 +60,7 @@ UI overlays for two view types : portrait and landscape.
 
 Width of directive. height will calculate (depends on aspect ratio GLOBAL settings).
 
-#### Result-func 
+#### -- Result-func 
 
 ```
 <layer-image data-result-func="resultCallback(imageLayerResult)" ...
@@ -94,7 +94,7 @@ Result callback with one argument. Argument looks like:
 **clearCenterShifts** - shifts relatively imageCenter in range [-0.5,+0.5]. 
 Shifts depends on  phone position with yellow borders.
 
-#### Face
+#### -- Face
 
 ```
 <layer-image data-face="{{face}}"...
@@ -111,7 +111,7 @@ Face rectangle:
 ```
 All props must be in range [0,1]
 
-####Image center
+#### -- Image center
 
 ```
 <layer-image data-image-center="{{imgExist.imageCenter}}" ...
@@ -124,7 +124,7 @@ Preview position relatively image. Must be in range [0,1] For example center wil
     centerY: 0.5
 }
 ```
-####Zoom factor
+#### -- Zoom factor
 
 ```
 <layer-image data-zoom-factor="1.5" ...
@@ -132,7 +132,7 @@ Preview position relatively image. Must be in range [0,1] For example center wil
 
 Zoom property must be in range [1, ...]. MaxZoom depends on image size.
 
-####Clear zone shifts
+#### -- Clear zone shifts
 
 ```
 <layer-image data-clear-shift="{{imgExist.clearShift}}" ...
