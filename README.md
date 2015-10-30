@@ -1,4 +1,4 @@
-# *Image-cropper directive.* 
+## Web test
 
 Demo: http://yazabara.github.io/web-test/
 
