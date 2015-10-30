@@ -1,4 +1,4 @@
-var layerModule = angular.module('yazabara.layers', [])
+var layerModule = angular.module('yazabara.directives', [])
     .constant('GLOBAL', {
         //settings from CONFIGURATION:
         uiSettings: {

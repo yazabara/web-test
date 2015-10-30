@@ -1,8 +1,8 @@
 'use strict';
 
-var indexApp = angular.module('IndexApp', ['ui.bootstrap-slider', 'yazabara.layers'], function () {});
+var app = angular.module('IndexApp', ['ui.bootstrap-slider', 'yazabara.directives'], function () {});
 
-indexApp.controller('Controller', ['$scope', '$log', 'GLOBAL', function ($scope, $log, GLOBAL) {
+app.controller('Controller', ['$scope', '$log', 'GLOBAL', function ($scope, $log, GLOBAL) {
     $log.info('controller was initialized');
 
     $scope.resultCallback = function (result) {
